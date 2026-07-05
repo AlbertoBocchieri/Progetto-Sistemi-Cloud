@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: parcheggia-postgres
+    environment:
+      POSTGRES_DB: parcheggia
+      POSTGRES_USER: parcheggia
+      POSTGRES_PASSWORD: parcheggia
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: parcheggia-redis
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: parcheggia-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: parcheggia
+      RABBITMQ_DEFAULT_PASS: parcheggia
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+volumes:
+  postgres_data:
