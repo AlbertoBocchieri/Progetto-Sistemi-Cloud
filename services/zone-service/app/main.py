@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, status
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -9,13 +11,17 @@ from app.schemas import ZoneResponse
 app = FastAPI(
     title="ParcheggIA Zone Service",
     description="Servizio geospaziale per la gestione delle zone urbane.",
-    version="0.2.0",
+    version="0.3.0",
 )
+
+
+def row_to_zone(row: Any) -> ZoneResponse:
+    """Converte una riga restituita da SQLAlchemy in una risposta API."""
+    return ZoneResponse(**dict(row))
 
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
-    """Verifica che il processo applicativo sia attivo."""
     return {
         "status": "up",
         "service": "zone-service",
@@ -24,7 +30,6 @@ def health_check() -> dict[str, str]:
 
 @app.get("/ready")
 def readiness_check() -> dict[str, str]:
-    """Verifica la connessione a PostgreSQL e PostGIS."""
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
@@ -50,7 +55,7 @@ def readiness_check() -> dict[str, str]:
 
 @app.get("/zones", response_model=list[ZoneResponse])
 def get_zones() -> list[ZoneResponse]:
-    """Restituisce tutte le zone disponibili come geometrie GeoJSON."""
+    """Restituisce tutte le zone disponibili."""
     try:
         with engine.connect() as connection:
             rows = connection.execute(
@@ -69,10 +74,7 @@ def get_zones() -> list[ZoneResponse]:
                 )
             ).mappings().all()
 
-        return [
-            ZoneResponse(**dict(row))
-            for row in rows
-        ]
+        return [row_to_zone(row) for row in rows]
 
     except SQLAlchemyError as error:
         print(f"Unable to load zones: {error}")
@@ -80,4 +82,107 @@ def get_zones() -> list[ZoneResponse]:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Unable to load zones",
+        ) from error
+
+
+@app.get("/zones/current", response_model=ZoneResponse)
+def get_current_zone(
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+) -> ZoneResponse:
+    """
+    Restituisce la zona che contiene le coordinate indicate.
+
+    Attenzione: PostGIS usa l'ordine longitudine, latitudine.
+    """
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        name,
+                        city,
+                        zone_type,
+                        baseline_capacity_estimate,
+                        ST_AsGeoJSON(polygon)::json AS geometry
+                    FROM zones
+                    WHERE ST_Covers(
+                        polygon,
+                        ST_SetSRID(
+                            ST_MakePoint(:lon, :lat),
+                            4326
+                        )
+                    )
+                    LIMIT 1
+                    """
+                ),
+                {
+                    "lat": lat,
+                    "lon": lon,
+                },
+            ).mappings().first()
+
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No zone contains the specified coordinates",
+            )
+
+        return row_to_zone(row)
+
+    except HTTPException:
+        raise
+
+    except SQLAlchemyError as error:
+        print(f"Unable to determine current zone: {error}")
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to determine current zone",
+        ) from error
+
+
+@app.get("/zones/{zone_id}", response_model=ZoneResponse)
+def get_zone_by_id(zone_id: str) -> ZoneResponse:
+    """Restituisce una singola zona tramite identificativo."""
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        name,
+                        city,
+                        zone_type,
+                        baseline_capacity_estimate,
+                        ST_AsGeoJSON(polygon)::json AS geometry
+                    FROM zones
+                    WHERE id = :zone_id
+                    """
+                ),
+                {
+                    "zone_id": zone_id,
+                },
+            ).mappings().first()
+
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Zone not found",
+            )
+
+        return row_to_zone(row)
+
+    except HTTPException:
+        raise
+
+    except SQLAlchemyError as error:
+        print(f"Unable to load zone {zone_id}: {error}")
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to load zone",
         ) from error
