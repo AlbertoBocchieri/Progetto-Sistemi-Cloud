@@ -1,0 +1,3 @@
+fastapi[standard]==0.139.0
+redis>=6.0,<7
+pika>=1.3,<2

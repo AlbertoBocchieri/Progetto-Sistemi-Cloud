@@ -16,11 +16,33 @@ services:
       timeout: 5s
       retries: 10
 
+  db-init:
+    image: postgis/postgis:16-3.4
+    container_name: parcheggia-db-init
+    environment:
+      PGPASSWORD: parcheggia
+    volumes:
+      - ./services/zone-service/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      [
+        "sh",
+        "-c",
+        "for i in $$(seq 1 60); do pg_isready -h postgres -U parcheggia -d parcheggia && exec psql -h postgres -U parcheggia -d parcheggia -f /migrations/001_create_zones.sql; sleep 1; done; exit 1"
+      ]
+
   redis:
     image: redis:7
     container_name: parcheggia-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -31,6 +53,11 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
   
   zone-service:
     build:
@@ -38,10 +65,17 @@ services:
     container_name: parcheggia-zone-service
     environment:
       DATABASE_URL: postgresql+psycopg://parcheggia:parcheggia@postgres:5432/parcheggia
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://parcheggia:parcheggia@rabbitmq:5672/%2F
+      EVENT_EXCHANGE: parcheggia.events
     ports:
       - "8001:8000"
     depends_on:
-      postgres:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -50,12 +84,193 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
         ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  ingestion-service:
+    build:
+      context: .
+      dockerfile: services/ingestion-service/Dockerfile
+    container_name: parcheggia-ingestion-service
+    environment:
+      RABBITMQ_URL: amqp://parcheggia:parcheggia@rabbitmq:5672/%2F
+      EVENT_EXCHANGE: parcheggia.events
+      TOMTOM_API_KEY: ${TOMTOM_API_KEY:-}
+      TOMTOM_API_KEY_FILE: ${TOMTOM_API_KEY_FILE:-}
+    ports:
+      - "8002:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nemotron-service:
+    build:
+      context: ./services/nemotron-service
+    container_name: parcheggia-nemotron-service
+    ports:
+      - "8003:8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  prediction-service:
+    build:
+      context: ./services/prediction-service
+    container_name: parcheggia-prediction-service
+    environment:
+      DATABASE_URL: postgresql+psycopg://parcheggia:parcheggia@postgres:5432/parcheggia
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8004:8000"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  location-service:
+    build:
+      context: ./services/location-service
+    container_name: parcheggia-location-service
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://parcheggia:parcheggia@rabbitmq:5672/%2F
+      EVENT_EXCHANGE: parcheggia.events
+      ZONE_SERVICE_URL: http://zone-service:8000/api/v1
+      PREDICTION_SERVICE_URL: http://prediction-service:8000/api/v1
+    ports:
+      - "8005:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      zone-service:
+        condition: service_healthy
+      prediction-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  admin-service:
+    build:
+      context: ./services/admin-service
+    container_name: parcheggia-admin-service
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://parcheggia:parcheggia@rabbitmq:5672/%2F
+      EVENT_EXCHANGE: parcheggia.events
+      ZONE_SERVICE_URL: http://zone-service:8000/api/v1
+    ports:
+      - "8006:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      zone-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+    container_name: parcheggia-api-gateway
+    ports:
+      - "8000:80"
+    depends_on:
+      zone-service:
+        condition: service_healthy
+      ingestion-service:
+        condition: service_healthy
+      nemotron-service:
+        condition: service_healthy
+      prediction-service:
+        condition: service_healthy
+      location-service:
+        condition: service_healthy
+      admin-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: parcheggia-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
 
 volumes:
   postgres_data:

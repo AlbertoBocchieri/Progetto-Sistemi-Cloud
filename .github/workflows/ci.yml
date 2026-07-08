@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install kubeconform
+        run: |
+          curl -L -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz kubeconform
+          sudo mv kubeconform /usr/local/bin/kubeconform
+
+      - name: Static checks
+        run: |
+          python -m py_compile services/zone-service/app/*.py services/ingestion-service/app/*.py services/nemotron-service/app/*.py services/prediction-service/app/*.py services/location-service/app/*.py services/admin-service/app/*.py
+          python scripts/check_scoring.py
+          python scripts/check_scenarios.py
+          python scripts/check_contracts.py
+          python scripts/check_frontend.py
+          kubeconform -strict -summary infrastructure/k8s/local-demo.yaml
+          docker compose config >/dev/null
+
+      - name: Compose smoke test
+        run: |
+          docker compose up --build -d
+          scripts/smoke_test.sh
+          scripts/e2e_demo_test.sh
+          ITERATIONS=10 scripts/load_test.sh
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

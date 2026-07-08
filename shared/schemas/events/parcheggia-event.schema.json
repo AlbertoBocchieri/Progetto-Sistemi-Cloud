@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parcheggia.local/schemas/events/parcheggia-event.schema.json",
+  "title": "ParcheggIA event envelope",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["event_id", "event_type", "source", "timestamp", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "traffic.snapshot.received",
+        "parkinglot.availability.updated",
+        "city.event.created",
+        "weather.snapshot.received",
+        "user.report.created",
+        "prediction.completed",
+        "zone.status.changed",
+        "ai.explanation.requested",
+        "ai.explanation.completed",
+        "user.location.updated",
+        "live.session.started",
+        "live.session.ended"
+      ]
+    },
+    "source": { "type": "string", "minLength": 1 },
+    "segment_id": { "type": ["string", "null"] },
+    "zone_id": { "type": ["string", "null"] },
+    "session_id": { "type": ["string", "null"] },
+    "timestamp": { "type": "string" },
+    "payload": { "type": "object" }
+  }
+}

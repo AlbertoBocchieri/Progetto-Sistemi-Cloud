@@ -1,0 +1,49 @@
+name: Deploy Local k3d
+
+on:
+  workflow_dispatch:
+
+jobs:
+  k3d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install k3d and kubeconform
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          curl -L -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz kubeconform
+          sudo mv kubeconform /usr/local/bin/kubeconform
+
+      - name: Static checks
+        run: |
+          python scripts/check_scoring.py
+          python scripts/check_scenarios.py
+          python scripts/check_contracts.py
+          python scripts/check_frontend.py
+          kubeconform -strict -summary infrastructure/k8s/local-demo.yaml
+
+      - name: Deploy to k3d
+        run: |
+          scripts/k3d_prepare_local.sh
+          scripts/k8s_apply_local.sh
+
+      - name: Kubernetes smoke
+        run: scripts/k8s_smoke_test.sh
+
+      - name: Kubernetes diagnostics
+        if: failure()
+        run: |
+          kubectl -n parcheggia get all
+          kubectl -n parcheggia describe pods
+          kubectl -n parcheggia logs --all-containers --tail=120 --prefix -l app=zone-service || true
+          kubectl -n parcheggia logs --all-containers --tail=120 --prefix -l app=prediction-service || true
+
+      - name: Cleanup
+        if: always()
+        run: k3d cluster delete parcheggia || true

@@ -1,0 +1,39 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ParcheggIA API",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/api/v1"
+    }
+  ],
+  "paths": {
+    "/health": { "get": { "summary": "Gateway-routed health" } },
+    "/ready": { "get": { "summary": "Gateway-routed readiness" } },
+    "/segments": { "get": { "summary": "List parking segments" } },
+    "/segments/current": { "get": { "summary": "Find nearest current parking segment by coordinates" } },
+    "/segments/nearby": { "get": { "summary": "Find nearby parking segments" } },
+    "/segments/{segment_id}": { "get": { "summary": "Get parking segment by id" } },
+    "/segments/{segment_id}/prediction": { "get": { "summary": "Get segment prediction" } },
+    "/predictions": { "post": { "summary": "Create prediction" } },
+    "/predictions/{prediction_id}": { "get": { "summary": "Get prediction by id" } },
+    "/segment-heatmap": { "get": { "summary": "Get segment heatmap" } },
+    "/live-sessions/start": { "post": { "summary": "Start live session" } },
+    "/live-sessions/{session_id}/location": { "post": { "summary": "Update live session location" } },
+    "/live-sessions/{session_id}/nearby-segments": { "get": { "summary": "Get nearby segments for live session" } },
+    "/live-sessions/{session_id}/stop": { "post": { "summary": "Stop live session" } },
+    "/segment-reports": { "post": { "summary": "Create segment user report" } },
+    "/admin/source-health": { "get": { "summary": "Get source health" } },
+    "/admin/events": { "get": { "summary": "Get recent events" } },
+    "/admin/demo-scenarios/reset": { "post": { "summary": "Reset demo scenarios" } }
+  },
+  "components": {
+    "schemas": {
+      "PredictionResponse": {
+        "$ref": "../schemas/api/prediction.schema.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,59 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type APPLY to run terraform apply"
+        required: true
+      enable_cloud_stack:
+        description: "Create paid AWS resources"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: eu-south-1
+      TF_VAR_enable_cloud_stack: ${{ inputs.enable_cloud_stack }}
+      TF_VAR_db_password: ${{ secrets.PARCHEGGIA_DB_PASSWORD }}
+      TF_VAR_mq_password: ${{ secrets.PARCHEGGIA_MQ_PASSWORD }}
+    defaults:
+      run:
+        working-directory: infrastructure/terraform/aws
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Require AWS credentials
+        run: |
+          test -n "$AWS_ACCESS_KEY_ID"
+          test -n "$AWS_SECRET_ACCESS_KEY"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform apply
+        if: ${{ inputs.confirm == 'APPLY' }}
+        run: terraform apply -input=false tfplan
+
+      - name: Apply skipped
+        if: ${{ inputs.confirm != 'APPLY' }}
+        run: echo "Confirmation was not APPLY; plan completed without apply."
