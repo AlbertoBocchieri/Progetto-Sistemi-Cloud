@@ -1,0 +1,44 @@
+---
+- name: Install local Kubernetes tools
+  hosts: local
+  gather_facts: false
+  tasks:
+    - name: Check kubectl
+      ansible.builtin.command: kubectl version --client
+      changed_when: false
+      failed_when: false
+      register: kubectl_check
+
+    - name: Show kubectl status
+      ansible.builtin.debug:
+        msg: "kubectl present: {{ kubectl_check.rc == 0 }}"
+
+    - name: Check multipass
+      ansible.builtin.command: multipass version
+      changed_when: false
+      failed_when: false
+      register: multipass_check
+
+    - name: Show multipass status
+      ansible.builtin.debug:
+        msg: "multipass present: {{ multipass_check.rc == 0 }}"
+
+    - name: Check k3d fallback
+      ansible.builtin.command: k3d version
+      changed_when: false
+      failed_when: false
+      register: k3d_check
+
+    - name: Show k3d status
+      ansible.builtin.debug:
+        msg: "k3d present: {{ k3d_check.rc == 0 }}"
+
+    - name: Check kubeconform
+      ansible.builtin.command: kubeconform -v
+      changed_when: false
+      failed_when: false
+      register: kubeconform_check
+
+    - name: Show kubeconform status
+      ansible.builtin.debug:
+        msg: "kubeconform present: {{ kubeconform_check.rc == 0 }}"

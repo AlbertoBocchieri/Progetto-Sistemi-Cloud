@@ -1,0 +1,31 @@
+---
+- name: Create local Multipass VM for k3s
+  hosts: local
+  gather_facts: false
+  vars:
+    vm_name: parcheggia-k3s
+    vm_cpus: 2
+    vm_memory: 3G
+    vm_disk: 20G
+  tasks:
+    - name: Check VM
+      ansible.builtin.command: multipass info {{ vm_name }}
+      changed_when: false
+      failed_when: false
+      register: vm_info
+
+    - name: Launch VM
+      ansible.builtin.command:
+        argv:
+          - multipass
+          - launch
+          - "24.04"
+          - --name
+          - "{{ vm_name }}"
+          - --cpus
+          - "{{ vm_cpus }}"
+          - --memory
+          - "{{ vm_memory }}"
+          - --disk
+          - "{{ vm_disk }}"
+      when: vm_info.rc != 0

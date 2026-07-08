@@ -1,0 +1,32 @@
+---
+- name: Bootstrap k3s on Multipass VM
+  hosts: local
+  gather_facts: false
+  vars:
+    vm_name: parcheggia-k3s
+  tasks:
+    - name: Install k3s
+      ansible.builtin.command:
+        argv:
+          - multipass
+          - exec
+          - "{{ vm_name }}"
+          - --
+          - sh
+          - -c
+          - "curl -sfL https://get.k3s.io | sh -"
+      changed_when: true
+
+    - name: Export kubeconfig
+      ansible.builtin.shell: |
+        set -eu
+        multipass exec {{ vm_name }} -- sudo cat /etc/rancher/k3s/k3s.yaml |
+          sed "s/127.0.0.1/$(multipass info {{ vm_name }} | awk '/IPv4/ {print $2; exit}')/" \
+          > .kubeconfig-parcheggia
+      args:
+        executable: /bin/sh
+      changed_when: true
+
+    - name: Show next command
+      ansible.builtin.debug:
+        msg: "Run: export KUBECONFIG=$PWD/.kubeconfig-parcheggia"

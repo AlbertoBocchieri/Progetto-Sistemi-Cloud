@@ -1,0 +1,9 @@
+aws_region         = "eu-south-1"
+project_name       = "parcheggia"
+environment        = "dev"
+enable_cloud_stack = false
+
+# Required only when enable_cloud_stack = true.
+# Prefer TF_VAR_db_password / TF_VAR_mq_password in CI secrets.
+# db_password = "replace-with-at-least-16-chars"
+# mq_password = "replace-with-at-least-16-chars"

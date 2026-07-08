@@ -1,0 +1,29 @@
+[
+  {
+    "id": "cittadella_morning_peak",
+    "label": "Mattina universitaria Borgo/Cittadella",
+    "affected_zones": ["ct-borgo-cittadella", "ct-sanzio"],
+    "traffic_pressure": 0.72,
+    "parking_lot_availability": 0.31,
+    "event_pressure": 0.10,
+    "expected_status": "difficult"
+  },
+  {
+    "id": "via_etnea_evening_event",
+    "label": "Evento serale centro storico",
+    "affected_zones": ["ct-via-etnea-stesicoro", "ct-piazza-universita"],
+    "traffic_pressure": 0.84,
+    "parking_lot_availability": 0.18,
+    "event_pressure": 0.90,
+    "expected_status": "very_difficult"
+  },
+  {
+    "id": "sanzio_relief",
+    "label": "Deflusso verso Sanzio e Corso Italia",
+    "affected_zones": ["ct-sanzio", "ct-corso-italia"],
+    "traffic_pressure": 0.24,
+    "parking_lot_availability": 0.72,
+    "event_pressure": 0.05,
+    "expected_status": "good"
+  }
+]

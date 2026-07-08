@@ -1,0 +1,66 @@
+name: Deploy EKS
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "EKS cluster name"
+        required: true
+        default: "parcheggia-dev"
+      image_tag:
+        description: "Image tag to deploy"
+        required: true
+        default: "latest"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: eu-south-1
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      ECR_BASE: ${{ secrets.PARCHEGGIA_ECR_BASE }}
+      NAMESPACE: parcheggia
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Install kubectl
+        run: |
+          curl -L -o kubectl "https://dl.k8s.io/release/v1.36.2/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "${{ inputs.cluster_name }}"
+
+      - name: Apply manifest
+        run: |
+          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "$NAMESPACE" create configmap zone-migrations \
+            --from-file=001_create_zones.sql=services/zone-service/migrations/001_create_zones.sql \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "$NAMESPACE" delete job db-init --ignore-not-found
+          kubectl apply -f infrastructure/k8s/local-demo.yaml
+
+      - name: Set ECR images
+        run: |
+          test -n "$ECR_BASE"
+          for service in api-gateway frontend zone-service ingestion-service nemotron-service prediction-service location-service admin-service; do
+            kubectl -n "$NAMESPACE" set image "deployment/${service}" "${service}=${ECR_BASE}/${service}:${{ inputs.image_tag }}"
+          done
+
+      - name: Wait rollout
+        run: |
+          for deployment in postgres redis rabbitmq zone-service ingestion-service nemotron-service prediction-service location-service admin-service api-gateway frontend; do
+            kubectl -n "$NAMESPACE" rollout status "deployment/${deployment}" --timeout=300s
+          done
+
+      - name: Pods
+        if: always()
+        run: kubectl -n "$NAMESPACE" get pods -o wide
