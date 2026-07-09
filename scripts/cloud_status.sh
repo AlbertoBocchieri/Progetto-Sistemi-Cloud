@@ -15,6 +15,12 @@ echo "Terraform state:"
 terraform -chdir="$TF_DIR" state list 2>/dev/null || echo "Nessuno state Terraform locale trovato."
 
 echo
+echo "Terraform backend:"
+aws s3api head-bucket --bucket parcheggia-dev-terraform-state-053524633862-eu-south-1 >/dev/null 2>&1 &&
+  echo "S3 state bucket: parcheggia-dev-terraform-state-053524633862-eu-south-1" ||
+  echo "S3 state bucket: missing"
+
+echo
 echo "ECR repositories:"
 aws ecr describe-repositories \
   --query 'repositories[?starts_with(repositoryName, `parcheggia-dev/`)].repositoryName' \

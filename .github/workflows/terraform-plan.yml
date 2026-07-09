@@ -25,6 +25,11 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform init
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' }}
+        run: terraform init -input=false
+
+      - name: Terraform init without backend
+        if: ${{ env.AWS_ACCESS_KEY_ID == '' || env.AWS_SECRET_ACCESS_KEY == '' }}
         run: terraform init -backend=false -input=false
 
       - name: Terraform validate

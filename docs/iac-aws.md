@@ -96,6 +96,20 @@ Con `enable_cloud_stack = false` restano solo ECR e lifecycle policy. Il destroy
 
 ## State Terraform remoto
 
-Il prossimo passo di sicurezza per Terraform e' spostare lo state locale in un bucket S3 versionato con lock su DynamoDB.
-S3 conserva il file `terraform.tfstate`; DynamoDB impedisce due `terraform apply` contemporanei sullo stesso state.
-Non e' ancora abilitato: prima va creato il backend e migrato lo state esistente.
+Lo state Terraform usa un backend remoto:
+
+- bucket S3 versionato `parcheggia-dev-terraform-state-053524633862-eu-south-1`;
+- chiave `terraform/aws/terraform.tfstate`;
+- cifratura S3 AES256;
+- lock nativo S3 con `use_lockfile = true`.
+
+Bootstrap o verifica del backend:
+
+```bash
+export AWS_PROFILE=parcheggia-dev
+export AWS_REGION=eu-south-1
+scripts/terraform_backend_bootstrap.sh
+terraform -chdir=infrastructure/terraform/aws init -migrate-state
+```
+
+Il backend non viene distrutto da `terraform destroy`, perche' contiene lo state necessario a sapere cosa esiste.
