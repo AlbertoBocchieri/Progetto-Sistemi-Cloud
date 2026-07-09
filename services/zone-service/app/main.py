@@ -69,7 +69,19 @@ REQUEST_COUNTS: dict[tuple[str, str, int], int] = {}
 REPORT_TYPES = {"found_spot", "full_zone", "released_spot", "parking_closed"}
 LOCAL_RADIUS_M = 500
 ROAD_NETWORK_RADIUS_M = 700
-ROAD_BACKED_SEGMENT_SQL = "parking_segments.id LIKE 'ct-osm-%'"
+ROAD_BACKED_SEGMENT_SQL = (
+    "(\n"
+    "    parking_segments.id LIKE 'ct-osm-%'\n"
+    "    OR (\n"
+    "        parking_segments.id LIKE 'ct-%'\n"
+    "        AND NOT EXISTS (\n"
+    "            SELECT 1\n"
+    "            FROM parking_segments AS osm_segments\n"
+    "            WHERE osm_segments.id LIKE 'ct-osm-%'\n"
+    "        )\n"
+    "    )\n"
+    ")"
+)
 SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-v1"
 
 ZONE_COLUMNS = """
@@ -656,12 +668,12 @@ def event_segment_targets(event: dict[str, Any]) -> list[tuple[str, float]]:
                     (row["id"], 1.0)
                     for row in connection.execute(
                         text(
-                            """
+                            f"""
                             SELECT parking_segments.id
                             FROM parking_segments
                             JOIN zones ON ST_Intersects(parking_segments.geometry, zones.polygon)
                             WHERE zones.id = :zone_id
-                              AND parking_segments.id LIKE 'ct-osm-%'
+                              AND {ROAD_BACKED_SEGMENT_SQL}
                             """
                         ),
                         {"zone_id": zone_id},
@@ -681,7 +693,7 @@ def event_segment_targets(event: dict[str, Any]) -> list[tuple[str, float]]:
         with engine.connect() as connection:
             rows = connection.execute(
                 text(
-                    """
+                    f"""
                     WITH anchor AS (
                         SELECT ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS geom
                     )
@@ -700,7 +712,7 @@ def event_segment_targets(event: dict[str, Any]) -> list[tuple[str, float]]:
                         anchor.geom::geography,
                         :radius_m
                     )
-                      AND parking_segments.id LIKE 'ct-osm-%'
+                      AND {ROAD_BACKED_SEGMENT_SQL}
                     ORDER BY influence_weight DESC, parking_segments.id
                     """
                 ),
@@ -873,8 +885,8 @@ def parse_segment_bbox(bbox: str | None) -> tuple[str, dict[str, float]]:
         )
 
     return (
-        """
-        WHERE parking_segments.id LIKE 'ct-osm-%'
+        f"""
+        WHERE {ROAD_BACKED_SEGMENT_SQL}
           AND ST_Intersects(
             parking_segments.geometry,
             ST_MakeEnvelope(:min_lon, :min_lat, :max_lon, :max_lat, 4326)
@@ -1050,7 +1062,7 @@ def get_segments() -> list[ParkingSegmentResponse]:
                     f"""
                     SELECT {SEGMENT_COLUMNS}
                     FROM parking_segments
-                    WHERE parking_segments.id LIKE 'ct-osm-%'
+                    WHERE {ROAD_BACKED_SEGMENT_SQL}
                     ORDER BY street_name, id
                     """
                 )
@@ -1093,7 +1105,7 @@ def get_nearby_segments(
                         point.geom::geography,
                         :radius_m
                     )
-                      AND parking_segments.id LIKE 'ct-osm-%'
+                      AND {ROAD_BACKED_SEGMENT_SQL}
                     ORDER BY distance_m, street_name, id
                     LIMIT :limit
                     """
@@ -1215,7 +1227,7 @@ def get_current_segment(
                         point.geom::geography,
                         140
                     )
-                      AND parking_segments.id LIKE 'ct-osm-%'
+                      AND {ROAD_BACKED_SEGMENT_SQL}
                     ORDER BY distance_m, street_name, id
                     LIMIT 1
                     """
@@ -1252,7 +1264,7 @@ def get_segment_by_id(segment_id: str) -> ParkingSegmentResponse:
                     SELECT {SEGMENT_COLUMNS}
                     FROM parking_segments
                     WHERE id = :segment_id
-                      AND parking_segments.id LIKE 'ct-osm-%'
+                      AND {ROAD_BACKED_SEGMENT_SQL}
                     """
                 ),
                 {"segment_id": segment_id},
@@ -1283,7 +1295,7 @@ def get_segment_prediction(segment_id: str) -> PredictionResponse:
                     SELECT {SEGMENT_COLUMNS}
                     FROM parking_segments
                     WHERE id = :segment_id
-                      AND parking_segments.id LIKE 'ct-osm-%'
+                      AND {ROAD_BACKED_SEGMENT_SQL}
                     """
                 ),
                 {"segment_id": segment_id},
@@ -1395,12 +1407,12 @@ def create_segment_report(report: SegmentReportRequest) -> ReportResponse:
         with engine.begin() as connection:
             impacted = connection.execute(
                 text(
-                    """
+                    f"""
                     WITH anchor AS (
                         SELECT geometry
                         FROM parking_segments
                         WHERE id = :segment_id
-                          AND parking_segments.id LIKE 'ct-osm-%'
+                          AND {ROAD_BACKED_SEGMENT_SQL}
                     )
                     SELECT
                         parking_segments.id,
@@ -1417,7 +1429,7 @@ def create_segment_report(report: SegmentReportRequest) -> ReportResponse:
                         anchor.geometry::geography,
                         150
                     )
-                      AND parking_segments.id LIKE 'ct-osm-%'
+                      AND {ROAD_BACKED_SEGMENT_SQL}
                     ORDER BY influence_weight DESC
                     """
                 ),

@@ -27,7 +27,19 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 redis = Redis.from_url(REDIS_URL, decode_responses=True)
 REQUEST_COUNTS: dict[tuple[str, str, int], int] = {}
-ROAD_BACKED_SEGMENT_SQL = "parking_segments.id LIKE 'ct-osm-%'"
+ROAD_BACKED_SEGMENT_SQL = (
+    "(\n"
+    "    parking_segments.id LIKE 'ct-osm-%'\n"
+    "    OR (\n"
+    "        parking_segments.id LIKE 'ct-%'\n"
+    "        AND NOT EXISTS (\n"
+    "            SELECT 1\n"
+    "            FROM parking_segments AS osm_segments\n"
+    "            WHERE osm_segments.id LIKE 'ct-osm-%'\n"
+    "        )\n"
+    "    )\n"
+    ")"
+)
 SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-v1"
 
 app = FastAPI(
@@ -210,7 +222,7 @@ def load_segment(segment_id: str) -> dict[str, Any] | None:
     with engine.connect() as connection:
         row = connection.execute(
             text(
-                """
+                f"""
                 SELECT
                     id,
                     street_name,
@@ -219,7 +231,7 @@ def load_segment(segment_id: str) -> dict[str, Any] | None:
                     source_confidence::float AS source_confidence
                 FROM parking_segments
                 WHERE id = :segment_id
-                  AND id LIKE 'ct-osm-%'
+                  AND {ROAD_BACKED_SEGMENT_SQL}
                 """
             ),
             {"segment_id": segment_id},
@@ -312,8 +324,8 @@ def parse_bbox(bbox: str | None) -> tuple[str, dict[str, float]]:
         raise HTTPException(status_code=400, detail="bbox min values must be smaller than max values")
 
     return (
-        """
-        WHERE parking_segments.id LIKE 'ct-osm-%'
+        f"""
+        WHERE {ROAD_BACKED_SEGMENT_SQL}
           AND ST_Intersects(
             parking_segments.geometry,
             ST_MakeEnvelope(:min_lon, :min_lat, :max_lon, :max_lat, 4326)
