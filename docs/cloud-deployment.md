@@ -72,6 +72,41 @@ PARCHEGGIA_ECR_BASE
 <account>.dkr.ecr.<region>.amazonaws.com/parcheggia-dev
 ```
 
+## Segreti AWS
+
+Per la demo cloud usiamo Systems Manager Parameter Store standard sotto `/parcheggia/dev`.
+I valori sensibili sono `SecureString`, le opzioni non sensibili sono `String`.
+
+Caricamento da `.env` locale senza stampare i valori:
+
+```bash
+export AWS_PROFILE=parcheggia-dev
+export AWS_REGION=eu-south-1
+scripts/aws_ssm_sync_env.sh
+```
+
+Controllo metadata, senza mostrare i valori:
+
+```bash
+scripts/aws_ssm_check_config.sh
+```
+
+Parametri principali:
+
+```text
+/parcheggia/dev/secrets/tomtom-api-key
+/parcheggia/dev/secrets/nemotron-api-key
+/parcheggia/dev/secrets/elevenlabs-api-key
+/parcheggia/dev/secrets/postgres-password
+/parcheggia/dev/secrets/rabbitmq-password
+```
+
+Per generare un Secret Kubernetes da SSM quando il cluster e' attivo:
+
+```bash
+scripts/k8s_secret_from_ssm.sh
+```
+
 ## Cost Guardrails
 
 - Ambiente unico `dev`.
