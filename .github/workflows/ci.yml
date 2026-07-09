@@ -9,6 +9,7 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -23,14 +24,7 @@ jobs:
           sudo mv kubeconform /usr/local/bin/kubeconform
 
       - name: Static checks
-        run: |
-          python -m py_compile services/zone-service/app/*.py services/ingestion-service/app/*.py services/nemotron-service/app/*.py services/prediction-service/app/*.py services/location-service/app/*.py services/admin-service/app/*.py
-          python scripts/check_scoring.py
-          python scripts/check_scenarios.py
-          python scripts/check_contracts.py
-          python scripts/check_frontend.py
-          kubeconform -strict -summary infrastructure/k8s/local-demo.yaml
-          docker compose config >/dev/null
+        run: scripts/static_checks.sh
 
       - name: Compose smoke test
         run: |

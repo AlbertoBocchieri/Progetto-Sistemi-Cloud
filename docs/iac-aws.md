@@ -93,3 +93,9 @@ CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh
 
 `cloud_up.sh` e `cloud_down.sh` richiedono conferme esplicite per evitare apply/destroy accidentali.
 Con `enable_cloud_stack = false` restano solo ECR e lifecycle policy. Il destroy totale cancella anche i repository ECR e le immagini; per spegnere solo le risorse costose dopo una demo, rimetti `enable_cloud_stack = false`, esegui `scripts/cloud_plan.sh` e poi `CONFIRM_APPLY=apply-parcheggia-dev scripts/cloud_up.sh`.
+
+## State Terraform remoto
+
+Il prossimo passo di sicurezza per Terraform e' spostare lo state locale in un bucket S3 versionato con lock su DynamoDB.
+S3 conserva il file `terraform.tfstate`; DynamoDB impedisce due `terraform apply` contemporanei sullo stesso state.
+Non e' ancora abilitato: prima va creato il backend e migrato lo state esistente.
