@@ -1,9 +1,12 @@
 #!/usr/bin/env sh
 set -eu
 
+AWS_PROFILE="${AWS_PROFILE:-parcheggia-dev}"
 AWS_REGION="${AWS_REGION:-eu-south-1}"
 TF_DIR="${TF_DIR:-infrastructure/terraform/aws}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
+
+export AWS_PROFILE AWS_REGION
 
 if ! command -v aws >/dev/null 2>&1; then
   echo "aws CLI is required." >&2

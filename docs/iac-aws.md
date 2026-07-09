@@ -77,3 +77,19 @@ Push immagini su ECR dopo `terraform apply` o dopo la creazione degli ECR:
 ```bash
 scripts/aws_ecr_push.sh
 ```
+
+## Cloud effimero sicuro
+
+Per usare AWS solo il tempo di testare o fare demo:
+
+```bash
+export AWS_PROFILE=parcheggia-dev
+export AWS_REGION=eu-south-1
+scripts/cloud_plan.sh
+CONFIRM_APPLY=apply-parcheggia-dev scripts/cloud_up.sh
+scripts/cloud_status.sh
+CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh
+```
+
+`cloud_up.sh` e `cloud_down.sh` richiedono conferme esplicite per evitare apply/destroy accidentali.
+Con `enable_cloud_stack = false` restano solo ECR e lifecycle policy. Il destroy totale cancella anche i repository ECR e le immagini; per spegnere solo le risorse costose dopo una demo, rimetti `enable_cloud_stack = false`, esegui `scripts/cloud_plan.sh` e poi `CONFIRM_APPLY=apply-parcheggia-dev scripts/cloud_up.sh`.
