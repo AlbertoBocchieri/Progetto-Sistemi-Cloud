@@ -64,6 +64,59 @@ http://localhost:15672
 
 Credenziali demo RabbitMQ: `parcheggia` / `parcheggia`.
 
+## Segmenti OSM Catania
+
+Con i container avviati, importa o aggiorna i segmenti stradali OSM del Comune di Catania:
+
+```bash
+python3 scripts/import_osm_segments.py --fetch --output data/osm/catania_segments.sql
+docker compose exec -T postgres psql -U parcheggia -d parcheggia < data/osm/catania_segments.sql
+python3 scripts/apply_parking_overrides.py
+docker compose exec -T postgres psql -U parcheggia -d parcheggia < data/osm/catania_blue_overrides.sql
+curl -fsS -X POST http://localhost:8000/api/v1/admin/demo-scenarios/reset
+```
+
+Gli override strisce blu sono in `data/parking_overrides/catania_blue_zones.csv` e derivano dal piano sosta AMTS. Il match e' per nome strada OSM normalizzato: copre le vie riconosciute con sicurezza e lascia `probable_free` dove il piano non combacia con un segmento OSM.
+
+## TomTom parsimonioso
+
+La key TomTom resta solo backend. In test il cap predefinito e' il 5% delle quote mensili configurate:
+
+```bash
+TOMTOM_API_KEY=...
+TOMTOM_BUDGET_FRACTION=0.05
+```
+
+Endpoint operativi:
+
+```http
+GET  /ingestion/traffic/tomtom/probe?lat=37.507&lon=15.083&radius_m=500
+POST /ingestion/traffic/tomtom/publish
+GET  /api/v1/tomtom/parking-pois?lat=37.507&lon=15.083&radius_m=500
+GET  /ingestion/traffic/tomtom/budget
+```
+
+`probe` e `publish` usano cache 5 minuti per cella circa 250m. `parking-pois` usa Search API con cache 24 ore e trova `7369` Open Parking Area e `7313` Parking Garage, senza disponibilita' live.
+La GUI usa `publish` in modalita' conservativa: una cella live consuma fino a 5 chiamate Traffic Flow e 1 Traffic Incidents; se la cache backend o frontend e' valida, consuma 0.
+
+## Suggerimenti Nemotron
+
+La key Nemotron resta solo backend. Per attivare i suggerimenti live, aggiungi al `.env` locale:
+
+```bash
+NEMOTRON_API_KEY=...
+NEMOTRON_BASE_URL=https://integrate.api.nvidia.com/v1
+NEMOTRON_MODEL=nvidia/nemotron-3-nano-30b-a3b
+NEMOTRON_TIMEOUT_SECONDS=45
+ELEVENLABS_API_KEY=...
+ELEVENLABS_VOICE_ID=EXAVITQu4vr4xnSDxMaL
+ELEVENLABS_MODEL_ID=eleven_multilingual_v2
+ELEVENLABS_STYLE_EXAGGERATION=0.25
+```
+
+Il frontend chiama solo `/ai/explain`. Se la key manca o l'endpoint non risponde, `nemotron-service` usa il fallback locale.
+Per la voce naturale, il frontend chiama `/ai/tts`: se ElevenLabs non risponde, torna automaticamente al TTS del browser.
+
 ## Smoke test
 
 Con i container avviati:
@@ -121,17 +174,19 @@ Ansible e Terraform sono documentati in [docs/iac-aws.md](docs/iac-aws.md).
 ```http
 GET  /health
 GET  /ready
-GET  /zones
-GET  /zones/current?lat=37.507&lon=15.083
-GET  /zones/nearby?lat=37.507&lon=15.083&radius_m=2200
-GET  /zones/{zone_id}
-GET  /zones/{zone_id}/prediction
-GET  /heatmap
+GET  /segments
+GET  /segments/current?lat=37.507&lon=15.083
+GET  /segments/nearby?lat=37.507&lon=15.083&radius_m=500
+GET  /road-network?lat=37.507&lon=15.083&radius_m=700
+GET  /segments/{segment_id}
+GET  /segments/{segment_id}/prediction
+GET  /segment-heatmap?bbox=15.073,37.500,15.093,37.516&zoom=18
+GET  /tomtom/parking-pois?lat=37.507&lon=15.083&radius_m=500
 POST /live-sessions/start
 POST /live-sessions/{session_id}/location
-GET  /live-sessions/{session_id}/nearby-zones
+GET  /live-sessions/{session_id}/nearby-segments
 POST /live-sessions/{session_id}/stop
-POST /reports
+POST /segment-reports
 POST /predictions
 GET  /predictions/{prediction_id}
 GET  /admin/source-health
@@ -139,6 +194,7 @@ GET  /admin/events
 POST /admin/demo-scenarios/reset
 GET  http://localhost:8002/scenarios
 POST http://localhost:8002/scenarios/{scenario_id}/start
+GET  http://localhost:8002/traffic/tomtom/budget
 POST http://localhost:8003/ai/explain
 ```
 

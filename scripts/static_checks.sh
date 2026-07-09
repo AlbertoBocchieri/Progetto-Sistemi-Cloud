@@ -8,6 +8,9 @@ python3 scripts/audit_requirements.py
 python3 scripts/check_scenarios.py
 python3 scripts/check_contracts.py
 python3 scripts/check_frontend.py
+python3 scripts/check_osm_import.py
+python3 scripts/check_parking_overrides.py
+python3 scripts/check_road_backed_segments.py
 
 if command -v kubeconform >/dev/null 2>&1; then
   kubeconform -strict -summary infrastructure/k8s/local-demo.yaml

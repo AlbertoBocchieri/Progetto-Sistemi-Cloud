@@ -29,6 +29,9 @@ from app.schemas import (
     PredictionResponse,
     ReportRequest,
     ReportResponse,
+    RoadEdgeResponse,
+    RoadNetworkResponse,
+    RoadNodeResponse,
     SegmentHeatmapItemResponse,
     SegmentHeatmapResponse,
     SegmentReportRequest,
@@ -64,6 +67,10 @@ REDIS = Redis.from_url(REDIS_URL, decode_responses=True)
 LAST_EVENT_AT: str | None = None
 REQUEST_COUNTS: dict[tuple[str, str, int], int] = {}
 REPORT_TYPES = {"found_spot", "full_zone", "released_spot", "parking_closed"}
+LOCAL_RADIUS_M = 500
+ROAD_NETWORK_RADIUS_M = 700
+ROAD_BACKED_SEGMENT_SQL = "parking_segments.id LIKE 'ct-osm-%'"
+SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-v1"
 
 ZONE_COLUMNS = """
     id,
@@ -126,6 +133,10 @@ SEGMENT_COLUMNS = """
     ) AS parking_lots
 """
 
+
+def segment_where(extra: str = "") -> str:
+    return f"WHERE {ROAD_BACKED_SEGMENT_SQL}{f' AND {extra}' if extra else ''}"
+
 # ponytail: deterministic demo predictions; split into prediction-service when ingestion exists.
 DEMO_PREDICTIONS = {
     "ct-via-etnea-stesicoro": {
@@ -180,9 +191,9 @@ SEGMENT_BASELINES = {
         "recommendation": "Strisce blu: buona rotazione, controlla tariffa e orari sul posto.",
     },
     "probable_free": {
-        "percent": 36,
+        "percent": 48,
         "confidence": 0.52,
-        "search_time": 20,
+        "search_time": 18,
         "recommendation": "Probabile libero: stima inferita, verifica sempre la segnaletica.",
     },
     "restricted": {
@@ -192,9 +203,9 @@ SEGMENT_BASELINES = {
         "recommendation": "Sosta probabilmente regolata o limitata: cerca alternative vicine.",
     },
     "unknown": {
-        "percent": 28,
+        "percent": 42,
         "confidence": 0.42,
-        "search_time": 24,
+        "search_time": 22,
         "recommendation": "Dati limitati: usa la stima come indicazione e verifica sul posto.",
     },
 }
@@ -632,34 +643,81 @@ def publish_event(event: dict[str, Any]) -> None:
         connection.close()
 
 
-def event_segment_ids(event: dict[str, Any]) -> list[str]:
+def event_segment_targets(event: dict[str, Any]) -> list[tuple[str, float]]:
     segment_id = event.get("segment_id")
     if segment_id:
-        return [str(segment_id)]
+        return [(str(segment_id), 1.0)]
 
     zone_id = event.get("zone_id")
-    if not zone_id:
+    if zone_id:
+        try:
+            with engine.connect() as connection:
+                return [
+                    (row["id"], 1.0)
+                    for row in connection.execute(
+                        text(
+                            """
+                            SELECT parking_segments.id
+                            FROM parking_segments
+                            JOIN zones ON ST_Intersects(parking_segments.geometry, zones.polygon)
+                            WHERE zones.id = :zone_id
+                              AND parking_segments.id LIKE 'ct-osm-%'
+                            """
+                        ),
+                        {"zone_id": zone_id},
+                    ).mappings()
+                ]
+        except SQLAlchemyError as error:
+            print(f"Unable to map event zone to segments: {error}")
+            return []
+
+    lat = event.get("lat")
+    lon = event.get("lon")
+    radius_m = event.get("radius_m") or (event.get("payload") or {}).get("radius_m") or LOCAL_RADIUS_M
+    if lat is None or lon is None:
         return []
 
     try:
         with engine.connect() as connection:
-            return [
-                row["id"]
-                for row in connection.execute(
-                    text(
-                        """
-                        SELECT parking_segments.id
-                        FROM parking_segments
-                        JOIN zones ON ST_Intersects(parking_segments.geometry, zones.polygon)
-                        WHERE zones.id = :zone_id
-                        """
-                    ),
-                    {"zone_id": zone_id},
-                ).mappings()
-            ]
-    except SQLAlchemyError as error:
-        print(f"Unable to map event zone to segments: {error}")
+            rows = connection.execute(
+                text(
+                    """
+                    WITH anchor AS (
+                        SELECT ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS geom
+                    )
+                    SELECT
+                        parking_segments.id,
+                        GREATEST(
+                            0.20,
+                            1 - ST_Distance(
+                                parking_segments.geometry::geography,
+                                anchor.geom::geography
+                            ) / :radius_m
+                        )::float AS influence_weight
+                    FROM parking_segments, anchor
+                    WHERE ST_DWithin(
+                        parking_segments.geometry::geography,
+                        anchor.geom::geography,
+                        :radius_m
+                    )
+                      AND parking_segments.id LIKE 'ct-osm-%'
+                    ORDER BY influence_weight DESC, parking_segments.id
+                    """
+                ),
+                {"lat": float(lat), "lon": float(lon), "radius_m": float(radius_m)},
+            ).mappings().all()
+            return [(row["id"], float(row["influence_weight"])) for row in rows]
+    except (TypeError, ValueError, SQLAlchemyError) as error:
+        print(f"Unable to map event coordinates to segments: {error}")
         return []
+
+
+def event_segment_ids(event: dict[str, Any]) -> list[str]:
+    return [segment_id for segment_id, _ in event_segment_targets(event)]
+
+
+def weighted_signal_value(value: float, weight: float) -> float:
+    return round(max(0.0, min(1.0, value * weight)), 3)
 
 
 def apply_event(event: dict[str, Any]) -> None:
@@ -670,21 +728,21 @@ def apply_event(event: dict[str, Any]) -> None:
         store_raw_event(event)
         return
 
-    segment_ids = event_segment_ids(event)
-    if not segment_ids:
+    targets = event_segment_targets(event)
+    if not targets:
         store_raw_event(event)
         return
 
     field, value = update
     now = iso_z(datetime.now(UTC))
 
-    for segment_id in segment_ids:
+    for segment_id, weight in targets:
         key = f"segment:signals:{segment_id}"
         try:
             REDIS.hset(
                 key,
                 mapping={
-                    field: value,
+                    field: weighted_signal_value(value, weight),
                     "updated_at": now,
                     "scenario_id": event.get("scenario_id", ""),
                     "scenario_label": event.get("scenario_label", ""),
@@ -798,7 +856,7 @@ def parse_bbox(bbox: str | None) -> tuple[str, dict[str, float]]:
 
 def parse_segment_bbox(bbox: str | None) -> tuple[str, dict[str, float]]:
     if bbox is None:
-        return "", {}
+        return segment_where(), {}
 
     try:
         min_lon, min_lat, max_lon, max_lat = [float(part) for part in bbox.split(",")]
@@ -816,7 +874,8 @@ def parse_segment_bbox(bbox: str | None) -> tuple[str, dict[str, float]]:
 
     return (
         """
-        WHERE ST_Intersects(
+        WHERE parking_segments.id LIKE 'ct-osm-%'
+          AND ST_Intersects(
             parking_segments.geometry,
             ST_MakeEnvelope(:min_lon, :min_lat, :max_lon, :max_lat, 4326)
         )
@@ -941,7 +1000,7 @@ def update_live_session_location(
         if error.status_code != status.HTTP_404_NOT_FOUND:
             raise
 
-    nearby_segments = get_nearby_segments(location.lat, location.lon, 900, 8)
+    nearby_segments = get_nearby_segments(location.lat, location.lon, LOCAL_RADIUS_M, 8)
     session["last_lat"] = location.lat
     session["last_lon"] = location.lon
     save_live_session(session)
@@ -968,7 +1027,7 @@ def get_live_session_nearby_segments(session_id: str) -> list[NearbySegmentRespo
             status_code=status.HTTP_409_CONFLICT,
             detail="Live session has no location yet",
         )
-    return get_nearby_segments(session["last_lat"], session["last_lon"], 900, 8)
+    return get_nearby_segments(session["last_lat"], session["last_lon"], LOCAL_RADIUS_M, 8)
 
 
 @app.post("/api/v1/live-sessions/{session_id}/stop", response_model=LiveSessionResponse, include_in_schema=False)
@@ -991,6 +1050,7 @@ def get_segments() -> list[ParkingSegmentResponse]:
                     f"""
                     SELECT {SEGMENT_COLUMNS}
                     FROM parking_segments
+                    WHERE parking_segments.id LIKE 'ct-osm-%'
                     ORDER BY street_name, id
                     """
                 )
@@ -1011,7 +1071,7 @@ def get_segments() -> list[ParkingSegmentResponse]:
 def get_nearby_segments(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
-    radius_m: int = Query(900, ge=50, le=3000),
+    radius_m: int = Query(LOCAL_RADIUS_M, ge=50, le=3000),
     limit: int = Query(20, ge=1, le=60),
 ) -> list[NearbySegmentResponse]:
     try:
@@ -1033,6 +1093,7 @@ def get_nearby_segments(
                         point.geom::geography,
                         :radius_m
                     )
+                      AND parking_segments.id LIKE 'ct-osm-%'
                     ORDER BY distance_m, street_name, id
                     LIMIT :limit
                     """
@@ -1063,6 +1124,74 @@ def get_nearby_segments(
         ) from error
 
 
+@app.get("/api/v1/road-network", response_model=RoadNetworkResponse, include_in_schema=False)
+@app.get("/road-network", response_model=RoadNetworkResponse)
+def get_road_network(
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+    radius_m: int = Query(ROAD_NETWORK_RADIUS_M, ge=100, le=2000),
+) -> RoadNetworkResponse:
+    try:
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    """
+                    WITH point AS (
+                        SELECT ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS geom
+                    )
+                    SELECT
+                        road_edges.id,
+                        road_edges.from_node_id,
+                        road_edges.to_node_id,
+                        road_edges.street_name,
+                        road_edges.highway,
+                        road_edges.one_way,
+                        ROUND(road_edges.length_m)::int AS length_m,
+                        ST_AsGeoJSON(road_edges.geometry)::json AS geometry
+                    FROM road_edges, point
+                    WHERE ST_DWithin(
+                        road_edges.geometry::geography,
+                        point.geom::geography,
+                        :radius_m
+                    )
+                    ORDER BY ST_Distance(road_edges.geometry::geography, point.geom::geography), road_edges.id
+                    LIMIT 700
+                    """
+                ),
+                {"lat": lat, "lon": lon, "radius_m": radius_m},
+            ).mappings().all()
+
+        nodes: dict[str, RoadNodeResponse] = {}
+        edges = []
+        for row in rows:
+            geometry = row["geometry"]
+            coordinates = geometry.get("coordinates") or []
+            if len(coordinates) >= 2:
+                nodes.setdefault(
+                    row["from_node_id"],
+                    RoadNodeResponse(id=row["from_node_id"], location={"type": "Point", "coordinates": coordinates[0]}),
+                )
+                nodes.setdefault(
+                    row["to_node_id"],
+                    RoadNodeResponse(id=row["to_node_id"], location={"type": "Point", "coordinates": coordinates[-1]}),
+                )
+            edges.append(RoadEdgeResponse(**dict(row)))
+
+        return RoadNetworkResponse(
+            generated_at=iso_z(datetime.now(UTC)),
+            radius_m=radius_m,
+            nodes=list(nodes.values()),
+            edges=edges,
+        )
+
+    except SQLAlchemyError as error:
+        print(f"Unable to load road network: {error}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to load road network",
+        ) from error
+
+
 @app.get("/api/v1/segments/current", response_model=ParkingSegmentResponse, include_in_schema=False)
 @app.get("/segments/current", response_model=ParkingSegmentResponse)
 def get_current_segment(
@@ -1086,6 +1215,7 @@ def get_current_segment(
                         point.geom::geography,
                         140
                     )
+                      AND parking_segments.id LIKE 'ct-osm-%'
                     ORDER BY distance_m, street_name, id
                     LIMIT 1
                     """
@@ -1122,6 +1252,7 @@ def get_segment_by_id(segment_id: str) -> ParkingSegmentResponse:
                     SELECT {SEGMENT_COLUMNS}
                     FROM parking_segments
                     WHERE id = :segment_id
+                      AND parking_segments.id LIKE 'ct-osm-%'
                     """
                 ),
                 {"segment_id": segment_id},
@@ -1152,6 +1283,7 @@ def get_segment_prediction(segment_id: str) -> PredictionResponse:
                     SELECT {SEGMENT_COLUMNS}
                     FROM parking_segments
                     WHERE id = :segment_id
+                      AND parking_segments.id LIKE 'ct-osm-%'
                     """
                 ),
                 {"segment_id": segment_id},
@@ -1179,7 +1311,7 @@ def get_segment_heatmap(
     bbox: str | None = Query(None, description="minLon,minLat,maxLon,maxLat"),
     zoom: int = Query(15, ge=1, le=20),
 ) -> SegmentHeatmapResponse:
-    cache_source = f"{bbox or 'all'}:{zoom}"
+    cache_source = f"{SEGMENT_HEATMAP_CACHE_VERSION}:{bbox or 'all'}:{zoom}"
     cache_key = f"segment-heatmap:{hashlib.sha1(cache_source.encode()).hexdigest()}"
     cached = redis_json_get(cache_key)
     if isinstance(cached, dict):
@@ -1268,6 +1400,7 @@ def create_segment_report(report: SegmentReportRequest) -> ReportResponse:
                         SELECT geometry
                         FROM parking_segments
                         WHERE id = :segment_id
+                          AND parking_segments.id LIKE 'ct-osm-%'
                     )
                     SELECT
                         parking_segments.id,
@@ -1284,6 +1417,7 @@ def create_segment_report(report: SegmentReportRequest) -> ReportResponse:
                         anchor.geometry::geography,
                         150
                     )
+                      AND parking_segments.id LIKE 'ct-osm-%'
                     ORDER BY influence_weight DESC
                     """
                 ),

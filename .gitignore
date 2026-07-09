@@ -24,3 +24,6 @@ crash.*.log
 node_modules/
 dist/
 build/
+
+data/osm/
+tmp_*.mp3

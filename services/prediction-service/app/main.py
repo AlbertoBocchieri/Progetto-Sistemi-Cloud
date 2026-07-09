@@ -27,6 +27,8 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 redis = Redis.from_url(REDIS_URL, decode_responses=True)
 REQUEST_COUNTS: dict[tuple[str, str, int], int] = {}
+ROAD_BACKED_SEGMENT_SQL = "parking_segments.id LIKE 'ct-osm-%'"
+SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-v1"
 
 app = FastAPI(
     title="ParcheggIA Prediction Service",
@@ -104,9 +106,9 @@ class SegmentHeatmapResponse(BaseModel):
 
 SEGMENT_BASELINES = {
     "blue": (42, 0.70, 16, "Strisce blu: buona rotazione, controlla tariffa e orari sul posto."),
-    "probable_free": (36, 0.52, 20, "Probabile libero: stima inferita, verifica sempre la segnaletica."),
+    "probable_free": (48, 0.52, 18, "Probabile libero: stima inferita, verifica sempre la segnaletica."),
     "restricted": (14, 0.66, 30, "Sosta probabilmente regolata o limitata: cerca alternative vicine."),
-    "unknown": (28, 0.42, 24, "Dati limitati: usa la stima come indicazione e verifica sul posto."),
+    "unknown": (42, 0.42, 22, "Dati limitati: usa la stima come indicazione e verifica sul posto."),
 }
 
 DEMO_SEGMENT_PERCENTS = {
@@ -217,6 +219,7 @@ def load_segment(segment_id: str) -> dict[str, Any] | None:
                     source_confidence::float AS source_confidence
                 FROM parking_segments
                 WHERE id = :segment_id
+                  AND id LIKE 'ct-osm-%'
                 """
             ),
             {"segment_id": segment_id},
@@ -298,7 +301,7 @@ def build_prediction(segment_id: str) -> PredictionResponse:
 
 def parse_bbox(bbox: str | None) -> tuple[str, dict[str, float]]:
     if bbox is None:
-        return "", {}
+        return f"WHERE {ROAD_BACKED_SEGMENT_SQL}", {}
 
     try:
         min_lon, min_lat, max_lon, max_lat = [float(part) for part in bbox.split(",")]
@@ -310,7 +313,8 @@ def parse_bbox(bbox: str | None) -> tuple[str, dict[str, float]]:
 
     return (
         """
-        WHERE ST_Intersects(
+        WHERE parking_segments.id LIKE 'ct-osm-%'
+          AND ST_Intersects(
             parking_segments.geometry,
             ST_MakeEnvelope(:min_lon, :min_lat, :max_lon, :max_lat, 4326)
         )
@@ -405,7 +409,7 @@ def get_segment_heatmap(
     bbox: str | None = Query(None, description="minLon,minLat,maxLon,maxLat"),
     zoom: int = Query(15, ge=1, le=20),
 ) -> SegmentHeatmapResponse:
-    cache_source = f"{bbox or 'all'}:{zoom}"
+    cache_source = f"{SEGMENT_HEATMAP_CACHE_VERSION}:{bbox or 'all'}:{zoom}"
     cache_key = f"segment-heatmap:{hashlib.sha1(cache_source.encode()).hexdigest()}"
     cached = redis_json_get(cache_key)
     if cached:

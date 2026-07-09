@@ -19,6 +19,7 @@ from redis.exceptions import RedisError
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://parcheggia:parcheggia@localhost:5672/%2F")
 EVENT_EXCHANGE = os.getenv("EVENT_EXCHANGE", "parcheggia.events")
+LOCAL_RADIUS_M = 500
 ZONE_SERVICE_URL = os.getenv("ZONE_SERVICE_URL", "http://localhost:8001/api/v1")
 PREDICTION_SERVICE_URL = os.getenv("PREDICTION_SERVICE_URL", "http://localhost:8004/api/v1")
 
@@ -207,7 +208,7 @@ def update_location(session_id: str, location: LocationUpdateRequest) -> Locatio
 
     query = f"lat={location.lat}&lon={location.lon}"
     current_segment = get_json(f"{ZONE_SERVICE_URL}/segments/current?{query}")
-    nearby_segments = get_json(f"{ZONE_SERVICE_URL}/segments/nearby?{query}&radius_m=900&limit=20") or []
+    nearby_segments = get_json(f"{ZONE_SERVICE_URL}/segments/nearby?{query}&radius_m={LOCAL_RADIUS_M}&limit=20") or []
     prediction = None
 
     if current_segment:
@@ -234,7 +235,7 @@ def nearby_segments(session_id: str) -> list[dict[str, Any]]:
     if session["last_lat"] is None or session["last_lon"] is None:
         raise HTTPException(status_code=409, detail="Live session has no location yet")
     query = f"lat={session['last_lat']}&lon={session['last_lon']}"
-    return get_json(f"{ZONE_SERVICE_URL}/segments/nearby?{query}&radius_m=900&limit=20") or []
+    return get_json(f"{ZONE_SERVICE_URL}/segments/nearby?{query}&radius_m={LOCAL_RADIUS_M}&limit=20") or []
 
 
 @app.post("/api/v1/live-sessions/{session_id}/stop", response_model=LiveSessionResponse, include_in_schema=False)
