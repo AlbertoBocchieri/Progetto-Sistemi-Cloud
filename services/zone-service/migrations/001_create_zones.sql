@@ -292,6 +292,40 @@ CREATE INDEX IF NOT EXISTS idx_parking_segments_geometry
 CREATE INDEX IF NOT EXISTS idx_parking_segments_type
     ON parking_segments (parking_type);
 
+CREATE TABLE IF NOT EXISTS road_nodes (
+    id TEXT PRIMARY KEY,
+    osm_node_id BIGINT,
+    location GEOMETRY(POINT, 4326) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_road_nodes_location
+    ON road_nodes
+    USING GIST (location);
+
+CREATE TABLE IF NOT EXISTS road_edges (
+    id TEXT PRIMARY KEY,
+    osm_way_id BIGINT NOT NULL,
+    from_node_id TEXT NOT NULL REFERENCES road_nodes(id),
+    to_node_id TEXT NOT NULL REFERENCES road_nodes(id),
+    street_name TEXT,
+    highway TEXT NOT NULL,
+    one_way BOOLEAN NOT NULL DEFAULT false,
+    geometry GEOMETRY(LINESTRING, 4326) NOT NULL,
+    length_m NUMERIC(8, 2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT road_edges_length_positive
+        CHECK (length_m > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_road_edges_geometry
+    ON road_edges
+    USING GIST (geometry);
+
+CREATE INDEX IF NOT EXISTS idx_road_edges_nodes
+    ON road_edges (from_node_id, to_node_id);
+
 WITH source_roads (
     road_id,
     street_name,

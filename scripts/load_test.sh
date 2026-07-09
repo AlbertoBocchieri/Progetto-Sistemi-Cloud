@@ -12,7 +12,7 @@ i=1
 while [ "$i" -le "$ITERATIONS" ]; do
   curl -fsS "$API_URL/ready" >/dev/null
   curl -fsS "$API_URL/segments/$SEGMENT_ID/prediction" >/dev/null
-  curl -fsS "$API_URL/segment-heatmap" >/dev/null
+  curl -fsS "$API_URL/segment-heatmap?bbox=15.073,37.500,15.093,37.516&zoom=18" >/dev/null
   i=$((i + 1))
 done
 

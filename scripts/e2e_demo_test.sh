@@ -20,7 +20,7 @@ SEGMENT_ID="$(
     python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])'
 )"
 
-curl -fsS "$API_URL/segment-heatmap" | grep -q "$SEGMENT_ID"
+curl -fsS "$API_URL/segment-heatmap?bbox=15.060,37.518,15.083,37.532&zoom=18" | grep -q "$SEGMENT_ID"
 
 curl -fsS \
   -H "Content-Type: application/json" \
@@ -35,7 +35,7 @@ curl -fsS "$API_URL/segments/$SEGMENT_ID/prediction" | grep -q "parkability_perc
 curl -fsS \
   -H "Content-Type: application/json" \
   -d '{"segment_id":"'"$SEGMENT_ID"'","segment_name":"Via Santa Sofia","parkability_percent":34,"status":"difficult","trend":"stable","confidence":0.69,"estimated_search_time_min":18,"recommendation":"Disponibilita bassa"}' \
-  "$AI_URL/ai/explain" | grep -q "rule-based-fallback"
+  "$AI_URL/ai/explain" | grep -q "model"
 
 curl -fsS -X POST "$API_URL/live-sessions/$SESSION_ID/stop" | grep -q "stopped"
 

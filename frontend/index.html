@@ -20,8 +20,6 @@
       <header class="drive-status" aria-label="Stato guida">
         <div class="status-left">
           <strong id="clock">--:--</strong>
-          <span class="signal-bars" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span id="network-label">--</span>
         </div>
         <div class="status-right">
           <span id="weather-icon" class="material-symbols-rounded" aria-hidden="true">cloud</span>
@@ -81,6 +79,15 @@
         <strong id="destination-floating-label">Destinazione</strong>
       </button>
 
+      <button id="ai-drive-card" class="ai-drive-card" type="button" aria-label="Suggerimento" hidden>
+        <span class="material-symbols-rounded" aria-hidden="true"></span>
+        <div>
+          <strong id="ai-hud-title">Suggerimento</strong>
+          <p id="ai-hud-text">Analizza il tratto corrente</p>
+        </div>
+        <em id="ai-hud-score">--%</em>
+      </button>
+
       <footer class="drive-dock" aria-label="Navigazione principale">
         <button id="open-menu" class="dock-icon" type="button" aria-label="Menu">
           <span class="material-symbols-rounded" aria-hidden="true">apps</span>
@@ -125,8 +132,8 @@
               <div><dt>Confidence</dt><dd id="confidence">--</dd></div>
             </dl>
             <p id="recommendation" class="recommendation"></p>
-            <button id="explain-ai" class="wide-command" type="button">Spiegazione AI</button>
-            <p id="ai-explanation" class="ai-explanation"></p>
+            <button id="explain-ai" class="wide-command" type="button">Suggerimento</button>
+            <div id="ai-explanation" class="ai-explanation ai-card" hidden></div>
           </div>
         </div>
 
@@ -150,8 +157,12 @@
           <div class="status-grid">
             <span id="gps-status">GPS demo</span>
             <span id="radar-status">Radar attivo</span>
-            <span id="local-scope">Raggio 900 m</span>
+            <span id="local-scope">Raggio 500 m</span>
             <span id="last-updated">--</span>
+            <span id="tomtom-prediction-status">Prediction TomTom: --</span>
+            <span id="tomtom-traffic-budget">Flow/Incidents: --</span>
+            <span id="tomtom-poi-status">POI TomTom: --</span>
+            <span id="tomtom-search-budget">Search: --</span>
           </div>
           <label class="select-row">
             <span>Destinazione</span>
@@ -159,6 +170,9 @@
           </label>
           <p id="destination-result" class="destination-result"></p>
           <div id="demo-points" class="demo-points"></div>
+          <button id="test-tomtom-pois" class="wide-command" type="button">Test POI TomTom</button>
+          <button id="drive-simulation" class="wide-command" type="button">Simula guida 500 m</button>
+          <button id="theme-toggle" class="wide-command" type="button">Tema chiaro</button>
           <h3 class="settings-section-title">Scenari demo</h3>
           <div id="scenario-buttons" class="scenario-buttons"></div>
           <p id="scenario-status" class="scenario-status">RabbitMQ pronto per scenari simulati.</p>
@@ -171,6 +185,6 @@
 
     <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js"></script>
-    <script src="./app.js?v=20260708-realtime-status-1"></script>
+    <script src="./app.js?v=20260709-ai-only-nano-theme-1"></script>
   </body>
 </html>

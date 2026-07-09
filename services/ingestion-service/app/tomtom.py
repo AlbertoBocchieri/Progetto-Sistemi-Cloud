@@ -1,16 +1,19 @@
 import json
 import math
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 FLOW_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
 INCIDENTS_URL = "https://api.tomtom.com/traffic/services/5/incidentDetails"
+NEARBY_SEARCH_URL = "https://api.tomtom.com/search/2/nearbySearch/.json"
+PARKING_CATEGORY_SET = "7369,7313"
 REQUEST_DELAY_SECONDS = 0.25
 RETRY_DELAY_SECONDS = 1.0
 INCIDENT_FIELDS = (
@@ -19,6 +22,7 @@ INCIDENT_FIELDS = (
     "from,to,length,delay,roadNumbers,timeValidity,probabilityOfOccurrence,"
     "numberOfReports,lastReportTime}}}"
 )
+BudgetGuard = Callable[[str], None]
 
 
 class TomTomError(Exception):
@@ -47,9 +51,27 @@ def load_api_key() -> str:
     raise TomTomError(503, "TOMTOM_API_KEY or TOMTOM_API_KEY_FILE is not configured")
 
 
-def fetch_json(url: str, params: dict[str, Any], timeout: int = 10) -> dict[str, Any]:
+def budget_cap(monthly_limit: int, fraction: float) -> int:
+    return max(1, int(monthly_limit * fraction))
+
+
+def cell_key(lat: float, lon: float, cell_m: int = 250) -> str:
+    lat_step = cell_m / 111_320
+    lon_step = cell_m / (111_320 * max(0.2, math.cos(math.radians(lat))))
+    return f"{math.floor(lat / lat_step)}:{math.floor(lon / lon_step)}"
+
+
+def fetch_json(
+    url: str,
+    params: dict[str, Any],
+    timeout: int = 10,
+    service: str = "tomtom",
+    before_request: BudgetGuard | None = None,
+) -> dict[str, Any]:
     query = urllib.parse.urlencode(params, safe=",{}")
     for attempt in range(2):
+        if before_request:
+            before_request(service)
         request = urllib.request.Request(f"{url}?{query}", headers={"Accept": "application/json"})
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -82,7 +104,7 @@ def bbox_from_radius(lat: float, lon: float, radius_m: int) -> str:
 
 
 def sample_points(lat: float, lon: float, radius_m: int) -> list[tuple[str, float, float]]:
-    offset_m = min(radius_m, 900) * 0.35
+    offset_m = min(radius_m, 500) * 0.35
     lat_delta = offset_m / 111_320
     lon_delta = offset_m / (111_320 * max(0.2, math.cos(math.radians(lat))))
     return [
@@ -134,7 +156,13 @@ def incident_pressure(incidents: list[dict[str, Any]]) -> float:
     return round(pressure, 3)
 
 
-def summarize_flow(api_key: str, lat: float, lon: float, radius_m: int) -> list[dict[str, Any]]:
+def summarize_flow(
+    api_key: str,
+    lat: float,
+    lon: float,
+    radius_m: int,
+    before_request: BudgetGuard | None = None,
+) -> list[dict[str, Any]]:
     samples = []
     for label, sample_lat, sample_lon in sample_points(lat, lon, radius_m):
         if samples:
@@ -143,6 +171,8 @@ def summarize_flow(api_key: str, lat: float, lon: float, radius_m: int) -> list[
         data = fetch_json(
             FLOW_URL,
             {"key": api_key, "point": f"{sample_lat},{sample_lon}", "unit": "KMPH"},
+            service="traffic_flow",
+            before_request=before_request,
         )
         segment = data.get("flowSegmentData") or {}
         pressure = traffic_pressure_from_flow(segment)
@@ -161,7 +191,13 @@ def summarize_flow(api_key: str, lat: float, lon: float, radius_m: int) -> list[
     return samples
 
 
-def fetch_incidents(api_key: str, lat: float, lon: float, radius_m: int) -> list[dict[str, Any]]:
+def fetch_incidents(
+    api_key: str,
+    lat: float,
+    lon: float,
+    radius_m: int,
+    before_request: BudgetGuard | None = None,
+) -> list[dict[str, Any]]:
     data = fetch_json(
         INCIDENTS_URL,
         {
@@ -171,12 +207,20 @@ def fetch_incidents(api_key: str, lat: float, lon: float, radius_m: int) -> list
             "language": "it-IT",
             "timeValidityFilter": "present",
         },
+        service="traffic_incidents",
+        before_request=before_request,
     )
     return data.get("incidents") or []
 
 
-def estimate_nearby(api_key: str, lat: float, lon: float, radius_m: int = 900) -> dict[str, Any]:
-    flows = summarize_flow(api_key, lat, lon, radius_m)
+def estimate_nearby(
+    api_key: str,
+    lat: float,
+    lon: float,
+    radius_m: int = 500,
+    before_request: BudgetGuard | None = None,
+) -> dict[str, Any]:
+    flows = summarize_flow(api_key, lat, lon, radius_m, before_request)
     valid_flows = [flow for flow in flows if flow["traffic_pressure"] is not None]
     if not valid_flows:
         raise TomTomError(502, "TomTom Flow did not return usable speed data")
@@ -186,7 +230,7 @@ def estimate_nearby(api_key: str, lat: float, lon: float, radius_m: int = 900) -
     free_speeds = [flow["free_flow_speed"] for flow in valid_flows if isinstance(flow["free_flow_speed"], (int, float))]
     confidences = [flow["confidence"] for flow in valid_flows if isinstance(flow["confidence"], (int, float))]
     time.sleep(REQUEST_DELAY_SECONDS)
-    incidents = fetch_incidents(api_key, lat, lon, radius_m)
+    incidents = fetch_incidents(api_key, lat, lon, radius_m, before_request)
     events_pressure = incident_pressure(incidents)
 
     return {
@@ -211,4 +255,91 @@ def estimate_nearby(api_key: str, lat: float, lon: float, radius_m: int = 900) -
             }
             for incident in incidents[:5]
         ],
+    }
+
+
+def parking_kind(result: dict[str, Any]) -> str:
+    category_ids = {
+        str(category.get("id"))
+        for category in (result.get("poi") or {}).get("categorySet", [])
+        if category.get("id") is not None
+    }
+    if "7313" in category_ids:
+        return "parking_garage"
+    if "7369" in category_ids:
+        return "open_parking_area"
+    return "parking"
+
+
+def clean_parking_address(value: Any) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    parts = [part.strip() for part in text.split(",") if part.strip()]
+    kept = []
+    for part in parts:
+        if re.match(r"^\d{5}\b", part):
+            continue
+        if re.fullmatch(r"Catania(?:\s+CT)?|CT|Italia|Italy", part, flags=re.IGNORECASE):
+            continue
+        kept.append(part)
+    cleaned = ", ".join(kept) if parts else text
+    cleaned = re.sub(r"(?:,\s*)?\b\d{5}\s+Catania(?:\s+CT)?(?:,\s*(?:Italia|Italy))?$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"(?:,\s*)?Catania(?:\s+CT)?(?:,\s*(?:Italia|Italy))?$", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"(?:,\s*)?(?:Italia|Italy)$", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip(" ,.-") or None
+
+
+def parse_parking_pois(data: dict[str, Any]) -> list[dict[str, Any]]:
+    pois = []
+    for result in data.get("results") or []:
+        poi = result.get("poi") or {}
+        address = result.get("address") or {}
+        position = result.get("position") or {}
+        display_address = clean_parking_address(address.get("freeformAddress"))
+        pois.append(
+            {
+                "id": result.get("id"),
+                "name": poi.get("name") or display_address or "Parcheggio",
+                "parking_kind": parking_kind(result),
+                "lat": position.get("lat"),
+                "lon": position.get("lon"),
+                "distance_m": result.get("dist"),
+                "address": display_address,
+                "opening_hours": poi.get("openingHours"),
+                "data_sources": result.get("dataSources"),
+            }
+        )
+    return pois
+
+
+def search_parking_pois(
+    api_key: str,
+    lat: float,
+    lon: float,
+    radius_m: int = 500,
+    limit: int = 10,
+    before_request: BudgetGuard | None = None,
+) -> dict[str, Any]:
+    data = fetch_json(
+        NEARBY_SEARCH_URL,
+        {
+            "key": api_key,
+            "lat": lat,
+            "lon": lon,
+            "radius": radius_m,
+            "limit": limit,
+            "countrySet": "IT",
+            "categorySet": PARKING_CATEGORY_SET,
+            "language": "it-IT",
+        },
+        service="search",
+        before_request=before_request,
+    )
+    return {
+        "provider": "tomtom",
+        "lat": lat,
+        "lon": lon,
+        "radius_m": radius_m,
+        "parking_pois": parse_parking_pois(data),
     }

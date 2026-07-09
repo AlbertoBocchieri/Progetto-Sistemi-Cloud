@@ -17,7 +17,7 @@ def main() -> int:
     parser.add_argument("--key-file", default="/Users/albertobocchieri/Desktop/tomtom_api_key.txt")
     parser.add_argument("--lat", type=float, default=37.5072)
     parser.add_argument("--lon", type=float, default=15.0832)
-    parser.add_argument("--radius-m", type=int, default=900)
+    parser.add_argument("--radius-m", type=int, default=500)
     args = parser.parse_args()
 
     api_key = os.getenv("TOMTOM_API_KEY") or Path(args.key_file).read_text(encoding="utf-8").strip()

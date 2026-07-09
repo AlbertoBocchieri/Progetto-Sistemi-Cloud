@@ -99,11 +99,18 @@ services:
     environment:
       RABBITMQ_URL: amqp://parcheggia:parcheggia@rabbitmq:5672/%2F
       EVENT_EXCHANGE: parcheggia.events
+      REDIS_URL: redis://redis:6379/0
       TOMTOM_API_KEY: ${TOMTOM_API_KEY:-}
-      TOMTOM_API_KEY_FILE: ${TOMTOM_API_KEY_FILE:-}
+      TOMTOM_BUDGET_FRACTION: ${TOMTOM_BUDGET_FRACTION:-0.05}
+      TOMTOM_MONTHLY_LIMIT_TRAFFIC_FLOW: ${TOMTOM_MONTHLY_LIMIT_TRAFFIC_FLOW:-200000}
+      TOMTOM_MONTHLY_LIMIT_TRAFFIC_INCIDENTS: ${TOMTOM_MONTHLY_LIMIT_TRAFFIC_INCIDENTS:-2500}
+      TOMTOM_MONTHLY_LIMIT_SEARCH: ${TOMTOM_MONTHLY_LIMIT_SEARCH:-2500}
+      TOMTOM_MONTHLY_LIMIT_ROUTING: ${TOMTOM_MONTHLY_LIMIT_ROUTING:-20000}
     ports:
       - "8002:8000"
     depends_on:
+      redis:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
@@ -124,6 +131,19 @@ services:
     build:
       context: ./services/nemotron-service
     container_name: parcheggia-nemotron-service
+    environment:
+      NEMOTRON_API_KEY: ${NEMOTRON_API_KEY:-}
+      NEMOTRON_BASE_URL: ${NEMOTRON_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NEMOTRON_MODEL: ${NEMOTRON_MODEL:-nvidia/nemotron-3-nano-30b-a3b}
+      NEMOTRON_TIMEOUT_SECONDS: ${NEMOTRON_TIMEOUT_SECONDS:-45}
+      NEMOTRON_CACHE_TTL_SECONDS: ${NEMOTRON_CACHE_TTL_SECONDS:-600}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_BASE_URL: ${ELEVENLABS_BASE_URL:-https://api.elevenlabs.io/v1}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-EXAVITQu4vr4xnSDxMaL}
+      ELEVENLABS_MODEL_ID: ${ELEVENLABS_MODEL_ID:-eleven_multilingual_v2}
+      ELEVENLABS_OUTPUT_FORMAT: ${ELEVENLABS_OUTPUT_FORMAT:-mp3_22050_32}
+      ELEVENLABS_TIMEOUT_SECONDS: ${ELEVENLABS_TIMEOUT_SECONDS:-20}
+      ELEVENLABS_STYLE_EXAGGERATION: ${ELEVENLABS_STYLE_EXAGGERATION:-0.25}
     ports:
       - "8003:8000"
     restart: unless-stopped

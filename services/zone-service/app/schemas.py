@@ -52,6 +52,29 @@ class NearbySegmentResponse(ParkingSegmentResponse):
     prediction: PredictionResponse
 
 
+class RoadNodeResponse(BaseModel):
+    id: str
+    location: dict[str, Any]
+
+
+class RoadEdgeResponse(BaseModel):
+    id: str
+    from_node_id: str
+    to_node_id: str
+    street_name: str | None
+    highway: str
+    one_way: bool
+    length_m: int
+    geometry: dict[str, Any]
+
+
+class RoadNetworkResponse(BaseModel):
+    generated_at: str
+    radius_m: int
+    nodes: list[RoadNodeResponse]
+    edges: list[RoadEdgeResponse]
+
+
 class HeatmapZoneResponse(BaseModel):
     zone_id: str
     name: str
