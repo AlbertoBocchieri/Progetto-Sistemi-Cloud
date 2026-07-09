@@ -16,8 +16,10 @@ def main() -> None:
     needles = [
         "ROAD_BACKED_SEGMENT_SQL",
         "parking_segments.id LIKE 'ct-osm-%'",
+        "parking_segments.id LIKE 'ct-%'",
+        "NOT EXISTS",
         "SEGMENT_HEATMAP_CACHE_VERSION",
-        "road-backed-ct-osm-v1",
+        "road-backed-ct-osm-fallback-v2",
     ]
     require("services/zone-service/app/main.py", needles)
     require("services/prediction-service/app/main.py", needles)

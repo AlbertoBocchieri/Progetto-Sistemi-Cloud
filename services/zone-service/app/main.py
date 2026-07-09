@@ -82,7 +82,7 @@ ROAD_BACKED_SEGMENT_SQL = (
     "    )\n"
     ")"
 )
-SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-v1"
+SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-fallback-v2"
 
 ZONE_COLUMNS = """
     id,
