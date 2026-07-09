@@ -24,9 +24,10 @@ NEMOTRON_CACHE_TTL_SECONDS = int(os.getenv("NEMOTRON_CACHE_TTL_SECONDS", "600"))
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "").strip()
 ELEVENLABS_BASE_URL = os.getenv("ELEVENLABS_BASE_URL", "https://api.elevenlabs.io/v1").rstrip("/")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")
-ELEVENLABS_MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
+ELEVENLABS_MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_flash_v2_5")
 ELEVENLABS_OUTPUT_FORMAT = os.getenv("ELEVENLABS_OUTPUT_FORMAT", "mp3_22050_32")
 ELEVENLABS_TIMEOUT_SECONDS = float(os.getenv("ELEVENLABS_TIMEOUT_SECONDS", "20"))
+ELEVENLABS_SIMILARITY_BOOST = float(os.getenv("ELEVENLABS_SIMILARITY_BOOST", "0.50"))
 ELEVENLABS_STYLE_EXAGGERATION = float(os.getenv("ELEVENLABS_STYLE_EXAGGERATION", "0.25"))
 
 
@@ -379,7 +380,10 @@ def elevenlabs_speech(text: str) -> bytes:
     if not cleaned:
         raise HTTPException(status_code=400, detail="Testo TTS vuoto")
     cache_key = hashlib.sha1(
-        f"{ELEVENLABS_VOICE_ID}:{ELEVENLABS_MODEL_ID}:{ELEVENLABS_STYLE_EXAGGERATION}:{cleaned}".encode("utf-8")
+        (
+            f"{ELEVENLABS_VOICE_ID}:{ELEVENLABS_MODEL_ID}:"
+            f"{ELEVENLABS_SIMILARITY_BOOST}:{ELEVENLABS_STYLE_EXAGGERATION}:{cleaned}"
+        ).encode("utf-8")
     ).hexdigest()
     if cache_key in TTS_CACHE:
         return TTS_CACHE[cache_key]
@@ -389,7 +393,7 @@ def elevenlabs_speech(text: str) -> bytes:
         "model_id": ELEVENLABS_MODEL_ID,
         "voice_settings": {
             "stability": 0.55,
-            "similarity_boost": 0.75,
+            "similarity_boost": ELEVENLABS_SIMILARITY_BOOST,
             "style": ELEVENLABS_STYLE_EXAGGERATION,
             "use_speaker_boost": True,
         },

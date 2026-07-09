@@ -34,6 +34,41 @@ resource "aws_ecr_repository" "services" {
   tags = local.tags
 }
 
+resource "aws_ecr_lifecycle_policy" "services" {
+  for_each = aws_ecr_repository.services
+
+  repository = each.value.name
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire untagged images after 1 day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 10
+        description  = "Keep only the last 5 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
+        }
+        action = {
+          type = "expire"
+        }
+      },
+    ]
+  })
+}
+
 resource "aws_cloudwatch_log_group" "services" {
   for_each = var.enable_cloud_stack ? toset(local.service_names) : toset([])
 
