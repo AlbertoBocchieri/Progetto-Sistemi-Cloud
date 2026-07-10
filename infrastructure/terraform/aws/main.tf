@@ -104,6 +104,9 @@ module "eks" {
   cluster_name    = local.name
   cluster_version = "1.30"
 
+  cluster_endpoint_public_access           = true
+  enable_cluster_creator_admin_permissions = true
+
   vpc_id     = module.vpc[0].vpc_id
   subnet_ids = module.vpc[0].private_subnets
 
@@ -220,13 +223,14 @@ resource "aws_elasticache_cluster" "redis" {
 resource "aws_mq_broker" "rabbitmq" {
   count = var.enable_cloud_stack ? 1 : 0
 
-  broker_name         = "${local.name}-rabbitmq"
-  engine_type         = "RabbitMQ"
-  engine_version      = "3.13"
-  host_instance_type  = var.mq_instance_type
-  publicly_accessible = false
-  subnet_ids          = [module.vpc[0].private_subnets[0]]
-  security_groups     = [aws_security_group.managed_services[0].id]
+  broker_name                = "${local.name}-rabbitmq"
+  engine_type                = "RabbitMQ"
+  engine_version             = "3.13"
+  host_instance_type         = var.mq_instance_type
+  auto_minor_version_upgrade = true
+  publicly_accessible        = false
+  subnet_ids                 = [module.vpc[0].private_subnets[0]]
+  security_groups            = [aws_security_group.managed_services[0].id]
 
   user {
     username = "parcheggia"

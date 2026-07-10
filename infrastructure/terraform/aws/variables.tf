@@ -46,7 +46,7 @@ variable "redis_node_type" {
 
 variable "mq_instance_type" {
   type    = string
-  default = "mq.t3.micro"
+  default = "mq.m5.large"
 }
 
 variable "db_password" {
