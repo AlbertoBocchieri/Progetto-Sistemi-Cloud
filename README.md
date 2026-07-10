@@ -5,7 +5,7 @@ Demo locale per il progetto di Sistemi Cloud: radar di parcheggiabilita su zone 
 ## Avvio rapido
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
 Frontend demo:
@@ -63,6 +63,13 @@ http://localhost:15672
 ```
 
 Credenziali demo RabbitMQ: `parcheggia` / `parcheggia`.
+
+Non serve un file `.env` per la demo locale: senza API key esterne l'app usa dati demo, predizioni locali, suggerimenti fallback e TTS del browser. Per verificare lo stack dopo l'avvio:
+
+```bash
+scripts/smoke_test.sh
+scripts/e2e_demo_test.sh
+```
 
 ## Segmenti OSM Catania
 
