@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-AWS_PROFILE="${AWS_PROFILE:-parcheggia-dev}"
+AWS_PROFILE="${AWS_PROFILE-}"
 AWS_REGION="${AWS_REGION:-eu-south-1}"
 TF_DIR="${TF_DIR:-infrastructure/terraform/aws}"
 PLAN_FILE="${PLAN_FILE:-cloud-down.tfplan}"
@@ -13,9 +13,22 @@ if [ "${CONFIRM_DESTROY:-}" != "destroy-parcheggia-dev" ]; then
   exit 2
 fi
 
-export AWS_PROFILE AWS_REGION
+if [ -z "$AWS_PROFILE" ] && { [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; }; then
+  AWS_PROFILE="parcheggia-dev"
+fi
+
+if [ -n "$AWS_PROFILE" ]; then
+  export AWS_PROFILE
+else
+  unset AWS_PROFILE
+fi
+export AWS_REGION
 
 aws sts get-caller-identity >/dev/null
+
+if [ -x scripts/cloud_schedule_auto_down.sh ]; then
+  scripts/cloud_schedule_auto_down.sh cancel || true
+fi
 
 if [ "${AUTO_DOWN_CHILD:-}" != "true" ] && [ -x scripts/cloud_auto_down.sh ]; then
   scripts/cloud_auto_down.sh cancel || true

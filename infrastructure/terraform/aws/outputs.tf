@@ -25,3 +25,15 @@ output "redis_endpoint" {
 output "rabbitmq_endpoint" {
   value = var.enable_cloud_stack ? aws_mq_broker.rabbitmq[0].instances[0].endpoints : null
 }
+
+output "auto_down_lambda_arn" {
+  value = aws_lambda_function.auto_down_dispatcher.arn
+}
+
+output "auto_down_scheduler_role_arn" {
+  value = aws_iam_role.auto_down_scheduler.arn
+}
+
+output "auto_down_schedule_name" {
+  value = local.auto_down_schedule_name
+}

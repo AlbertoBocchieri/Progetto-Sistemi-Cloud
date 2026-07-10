@@ -74,3 +74,28 @@ variable "mq_password" {
     error_message = "mq_password must be null or at least 16 characters."
   }
 }
+
+variable "github_owner" {
+  type    = string
+  default = "AlbertoBocchieri"
+}
+
+variable "github_repo" {
+  type    = string
+  default = "Progetto-Sistemi-Cloud"
+}
+
+variable "github_ref" {
+  type    = string
+  default = "main"
+}
+
+variable "github_down_workflow" {
+  type    = string
+  default = "cloud-down.yml"
+}
+
+variable "github_actions_token_parameter" {
+  type    = string
+  default = "/parcheggia/dev/secrets/github-actions-token"
+}

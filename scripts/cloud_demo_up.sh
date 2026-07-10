@@ -11,6 +11,7 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 IMPORT_OSM="${IMPORT_OSM:-true}"
 AUTO_DOWN="${AUTO_DOWN:-true}"
 AUTO_DOWN_AFTER_SECONDS="${AUTO_DOWN_AFTER_SECONDS:-14400}"
+AUTO_DOWN_BACKEND="${AUTO_DOWN_BACKEND:-lambda}"
 
 if [ "${CONFIRM_APPLY:-}" != "apply-parcheggia-dev" ]; then
   echo "Bloccato: usa CONFIRM_APPLY=apply-parcheggia-dev per accendere risorse AWS." >&2
@@ -104,5 +105,10 @@ echo "Quando hai finito:"
 echo "CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh"
 
 if [ "$AUTO_DOWN" = "true" ]; then
-  AUTO_DOWN_AFTER_SECONDS="$AUTO_DOWN_AFTER_SECONDS" scripts/cloud_auto_down.sh schedule
+  if [ "$AUTO_DOWN_BACKEND" = "lambda" ] && AUTO_DOWN_AFTER_SECONDS="$AUTO_DOWN_AFTER_SECONDS" scripts/cloud_schedule_auto_down.sh schedule; then
+    :
+  else
+    echo "Fallback: uso auto-spegnimento locale." >&2
+    AUTO_DOWN_AFTER_SECONDS="$AUTO_DOWN_AFTER_SECONDS" scripts/cloud_auto_down.sh schedule
+  fi
 fi

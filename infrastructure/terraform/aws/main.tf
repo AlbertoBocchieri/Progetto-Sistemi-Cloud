@@ -1,5 +1,6 @@
 locals {
-  name = "${var.project_name}-${var.environment}"
+  name                    = "${var.project_name}-${var.environment}"
+  auto_down_schedule_name = "${local.name}-auto-down"
   service_names = [
     "api-gateway",
     "frontend",
@@ -18,6 +19,14 @@ locals {
 
 data "aws_availability_zones" "available" {
   state = "available"
+}
+
+data "aws_caller_identity" "current" {}
+
+data "archive_file" "auto_down_dispatcher" {
+  type        = "zip"
+  source_file = "${path.module}/lambda/auto_down_dispatcher.py"
+  output_path = "${path.module}/.terraform/auto_down_dispatcher.zip"
 }
 
 resource "aws_ecr_repository" "services" {
@@ -76,6 +85,136 @@ resource "aws_cloudwatch_log_group" "services" {
   retention_in_days = 7
 
   tags = local.tags
+}
+
+resource "aws_cloudwatch_log_group" "auto_down_dispatcher" {
+  name              = "/aws/lambda/${local.name}-auto-down-dispatcher"
+  retention_in_days = 7
+
+  tags = local.tags
+}
+
+resource "aws_iam_role" "auto_down_dispatcher" {
+  name = "${local.name}-auto-down-dispatcher"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy" "auto_down_dispatcher" {
+  name = "${local.name}-auto-down-dispatcher"
+  role = aws_iam_role.auto_down_dispatcher.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "${aws_cloudwatch_log_group.auto_down_dispatcher.arn}:*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "ssm:GetParameter"
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.github_actions_token_parameter}"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "kms:Decrypt"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_lambda_function" "auto_down_dispatcher" {
+  function_name    = "${local.name}-auto-down-dispatcher"
+  description      = "Dispatches the GitHub Actions cloud-down workflow for ParcheggIA demos."
+  role             = aws_iam_role.auto_down_dispatcher.arn
+  handler          = "auto_down_dispatcher.handler"
+  runtime          = "python3.12"
+  filename         = data.archive_file.auto_down_dispatcher.output_path
+  source_code_hash = data.archive_file.auto_down_dispatcher.output_base64sha256
+  timeout          = 20
+  memory_size      = 128
+  architectures    = ["arm64"]
+
+  environment {
+    variables = {
+      GITHUB_TOKEN_PARAMETER = var.github_actions_token_parameter
+      GITHUB_OWNER           = var.github_owner
+      GITHUB_REPO            = var.github_repo
+      GITHUB_REF             = var.github_ref
+      GITHUB_WORKFLOW        = var.github_down_workflow
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.auto_down_dispatcher]
+
+  tags = local.tags
+}
+
+resource "aws_iam_role" "auto_down_scheduler" {
+  name = "${local.name}-auto-down-scheduler"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "scheduler.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy" "auto_down_scheduler" {
+  name = "${local.name}-auto-down-scheduler"
+  role = aws_iam_role.auto_down_scheduler.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
+        Resource = aws_lambda_function.auto_down_dispatcher.arn
+      }
+    ]
+  })
+}
+
+resource "aws_lambda_permission" "auto_down_scheduler" {
+  statement_id  = "AllowEventBridgeSchedulerInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.auto_down_dispatcher.function_name
+  principal     = "scheduler.amazonaws.com"
+  source_arn    = "arn:aws:scheduler:${var.aws_region}:${data.aws_caller_identity.current.account_id}:schedule/default/${local.auto_down_schedule_name}"
 }
 
 module "vpc" {

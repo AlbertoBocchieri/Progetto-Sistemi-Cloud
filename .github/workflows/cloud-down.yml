@@ -1,0 +1,51 @@
+name: Cloud Down
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type destroy-parcheggia-dev to turn off the paid cloud stack"
+        required: true
+        default: "destroy-parcheggia-dev"
+
+permissions:
+  contents: read
+
+jobs:
+  down:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: eu-south-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Install kubectl
+        run: |
+          curl -L -o kubectl "https://dl.k8s.io/release/v1.36.2/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Require confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "destroy-parcheggia-dev" ]; then
+            echo "::error title=Wrong confirmation::Use destroy-parcheggia-dev."
+            exit 2
+          fi
+
+      - name: Turn off cloud stack
+        env:
+          AWS_PROFILE: ""
+        run: CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh
