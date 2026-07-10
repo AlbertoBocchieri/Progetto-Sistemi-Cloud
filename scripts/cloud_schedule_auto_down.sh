@@ -74,7 +74,7 @@ PY
   status)
     if ! aws scheduler get-schedule --name "$SCHEDULE_NAME" \
       --query '{Name:Name,State:State,ScheduleExpression:ScheduleExpression,Target:Target.Arn}' \
-      --output table; then
+      --output table 2>/dev/null; then
       echo "Nessun auto-spegnimento AWS attivo."
     fi
     ;;
