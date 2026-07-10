@@ -17,6 +17,10 @@ export AWS_PROFILE AWS_REGION
 
 aws sts get-caller-identity >/dev/null
 
+if [ "${AUTO_DOWN_CHILD:-}" != "true" ] && [ -x scripts/cloud_auto_down.sh ]; then
+  scripts/cloud_auto_down.sh cancel || true
+fi
+
 if command -v kubectl >/dev/null 2>&1 \
   && aws eks describe-cluster --name "$CLUSTER_NAME" --query 'cluster.status' --output text >/dev/null 2>&1; then
   echo "Pulizia Load Balancer Kubernetes prima dello spegnimento..."

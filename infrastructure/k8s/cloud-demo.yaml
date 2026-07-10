@@ -60,10 +60,6 @@ spec:
                 name: parcheggia-secrets
           ports:
             - containerPort: 8000
-          volumeMounts:
-            - name: zone-service-app-code
-              mountPath: /app/app/main.py
-              subPath: main.py
           resources:
             requests:
               cpu: 100m
@@ -77,10 +73,6 @@ spec:
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 10
-      volumes:
-        - name: zone-service-app-code
-          configMap:
-            name: zone-service-app-code
 ---
 apiVersion: v1
 kind: Service
@@ -120,20 +112,12 @@ spec:
                 name: parcheggia-secrets
           ports:
             - containerPort: 8000
-          volumeMounts:
-            - name: prediction-service-app-code
-              mountPath: /app/app/main.py
-              subPath: main.py
           readinessProbe:
             httpGet:
               path: /ready
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 10
-      volumes:
-        - name: prediction-service-app-code
-          configMap:
-            name: prediction-service-app-code
 ---
 apiVersion: v1
 kind: Service
@@ -408,17 +392,6 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 80
-          volumeMounts:
-            - name: frontend-cloud-config
-              mountPath: /usr/share/nginx/html/app.js
-              subPath: app.js
-            - name: frontend-cloud-config
-              mountPath: /etc/nginx/conf.d/default.conf
-              subPath: nginx.conf
-      volumes:
-        - name: frontend-cloud-config
-          configMap:
-            name: frontend-cloud-config
 ---
 apiVersion: v1
 kind: Service

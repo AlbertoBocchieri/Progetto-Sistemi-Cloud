@@ -9,6 +9,8 @@ TF_DIR="${TF_DIR:-infrastructure/terraform/aws}"
 MANIFEST="${MANIFEST:-infrastructure/k8s/cloud-demo.yaml}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 IMPORT_OSM="${IMPORT_OSM:-true}"
+AUTO_DOWN="${AUTO_DOWN:-true}"
+AUTO_DOWN_AFTER_SECONDS="${AUTO_DOWN_AFTER_SECONDS:-14400}"
 
 if [ "${CONFIRM_APPLY:-}" != "apply-parcheggia-dev" ]; then
   echo "Bloccato: usa CONFIRM_APPLY=apply-parcheggia-dev per accendere risorse AWS." >&2
@@ -29,19 +31,6 @@ scripts/k8s_cloud_config_from_aws.sh
 
 kubectl -n "$NAMESPACE" create configmap zone-migrations \
   --from-file=001_create_zones.sql=services/zone-service/migrations/001_create_zones.sql \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl -n "$NAMESPACE" create configmap frontend-cloud-config \
-  --from-file=app.js=frontend/app.js \
-  --from-file=nginx.conf=frontend/nginx.conf \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl -n "$NAMESPACE" create configmap zone-service-app-code \
-  --from-file=main.py=services/zone-service/app/main.py \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl -n "$NAMESPACE" create configmap prediction-service-app-code \
-  --from-file=main.py=services/prediction-service/app/main.py \
   --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl -n "$NAMESPACE" delete job db-init --ignore-not-found
@@ -113,3 +102,7 @@ fi
 echo
 echo "Quando hai finito:"
 echo "CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh"
+
+if [ "$AUTO_DOWN" = "true" ]; then
+  AUTO_DOWN_AFTER_SECONDS="$AUTO_DOWN_AFTER_SECONDS" scripts/cloud_auto_down.sh schedule
+fi
