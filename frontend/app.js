@@ -1,4 +1,7 @@
-const GATEWAY_URL = "http://localhost:8000";
+const GATEWAY_URL =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:8000"
+    : window.location.origin;
 const API_URL = `${GATEWAY_URL}/api/v1`;
 const AI_URL = GATEWAY_URL;
 const INGESTION_URL = `${GATEWAY_URL}/ingestion`;

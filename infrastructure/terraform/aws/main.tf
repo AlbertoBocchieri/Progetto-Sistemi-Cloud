@@ -110,12 +110,24 @@ module "eks" {
   vpc_id     = module.vpc[0].vpc_id
   subnet_ids = module.vpc[0].private_subnets
 
+  node_security_group_additional_rules = {
+    ingress_self_http = {
+      description = "Allow pod-to-pod HTTP traffic between EKS nodes"
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      type        = "ingress"
+      self        = true
+    }
+  }
+
   eks_managed_node_groups = {
     default = {
-      instance_types = ["t3.small"]
+      instance_types = ["t4g.small"]
+      ami_type       = "AL2023_ARM_64_STANDARD"
       min_size       = 1
       max_size       = 2
-      desired_size   = 1
+      desired_size   = 2
     }
   }
 
