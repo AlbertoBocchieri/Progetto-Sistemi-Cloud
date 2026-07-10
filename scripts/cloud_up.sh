@@ -4,7 +4,9 @@ set -eu
 AWS_PROFILE="${AWS_PROFILE:-parcheggia-dev}"
 AWS_REGION="${AWS_REGION:-eu-south-1}"
 TF_DIR="${TF_DIR:-infrastructure/terraform/aws}"
-PLAN_FILE="${PLAN_FILE:-cloud.tfplan}"
+PLAN_FILE="${PLAN_FILE:-cloud-up.tfplan}"
+DB_PASSWORD_PARAMETER="${DB_PASSWORD_PARAMETER:-/parcheggia/dev/secrets/postgres-password}"
+MQ_PASSWORD_PARAMETER="${MQ_PASSWORD_PARAMETER:-/parcheggia/dev/secrets/rabbitmq-password}"
 
 if [ "${CONFIRM_APPLY:-}" != "apply-parcheggia-dev" ]; then
   echo "Bloccato: esporta CONFIRM_APPLY=apply-parcheggia-dev per creare risorse AWS." >&2
@@ -14,6 +16,11 @@ fi
 export AWS_PROFILE AWS_REGION
 
 aws sts get-caller-identity >/dev/null
+export TF_VAR_enable_cloud_stack=true
+export TF_VAR_db_password="$(aws ssm get-parameter --name "$DB_PASSWORD_PARAMETER" --with-decryption --query Parameter.Value --output text)"
+export TF_VAR_mq_password="$(aws ssm get-parameter --name "$MQ_PASSWORD_PARAMETER" --with-decryption --query Parameter.Value --output text)"
+terraform -chdir="$TF_DIR" init -input=false
+terraform -chdir="$TF_DIR" validate
 terraform -chdir="$TF_DIR" plan -input=false -out="$PLAN_FILE"
 terraform -chdir="$TF_DIR" apply -input=false "$PLAN_FILE"
 
