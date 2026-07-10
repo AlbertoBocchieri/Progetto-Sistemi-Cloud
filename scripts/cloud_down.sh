@@ -5,6 +5,8 @@ AWS_PROFILE="${AWS_PROFILE:-parcheggia-dev}"
 AWS_REGION="${AWS_REGION:-eu-south-1}"
 TF_DIR="${TF_DIR:-infrastructure/terraform/aws}"
 PLAN_FILE="${PLAN_FILE:-cloud-down.tfplan}"
+CLUSTER_NAME="${CLUSTER_NAME:-parcheggia-dev}"
+NAMESPACE="${NAMESPACE:-parcheggia}"
 
 if [ "${CONFIRM_DESTROY:-}" != "destroy-parcheggia-dev" ]; then
   echo "Bloccato: esporta CONFIRM_DESTROY=destroy-parcheggia-dev per distruggere risorse AWS." >&2
@@ -14,6 +16,15 @@ fi
 export AWS_PROFILE AWS_REGION
 
 aws sts get-caller-identity >/dev/null
+
+if command -v kubectl >/dev/null 2>&1 \
+  && aws eks describe-cluster --name "$CLUSTER_NAME" --query 'cluster.status' --output text >/dev/null 2>&1; then
+  echo "Pulizia Load Balancer Kubernetes prima dello spegnimento..."
+  aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME" >/dev/null
+  kubectl -n "$NAMESPACE" delete service frontend --ignore-not-found --wait=true || true
+  sleep 45
+fi
+
 export TF_VAR_enable_cloud_stack=false
 terraform -chdir="$TF_DIR" init -input=false
 terraform -chdir="$TF_DIR" validate
