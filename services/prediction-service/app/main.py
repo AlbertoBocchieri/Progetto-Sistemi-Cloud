@@ -40,7 +40,7 @@ ROAD_BACKED_SEGMENT_SQL = (
     "    )\n"
     ")"
 )
-SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-fallback-v2"
+SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-osm-auto-v1"
 
 app = FastAPI(
     title="ParcheggIA Prediction Service",
@@ -146,6 +146,30 @@ DEMO_SEGMENT_PERCENTS = {
 def demo_segment_percent(segment_id: str, fallback: int) -> int:
     road_id = segment_id.rsplit("-", 1)[0]
     return DEMO_SEGMENT_PERCENTS.get(road_id, fallback)
+
+
+SIMULATED_PERCENT_RANGES = {
+    "blue": (28, 72),
+    "probable_free": (22, 78),
+    "restricted": (5, 24),
+    "unknown": (24, 62),
+}
+
+
+def simulated_segment_percent(segment: dict[str, Any], fallback: int) -> int:
+    segment_id = segment["id"]
+    if not segment_id.startswith("ct-osm-"):
+        return demo_segment_percent(segment_id, fallback)
+
+    low, high = SIMULATED_PERCENT_RANGES.get(
+        segment.get("parking_type"),
+        SIMULATED_PERCENT_RANGES["unknown"],
+    )
+    street_key = f"{segment.get('street_name', '')}:{segment.get('parking_type', '')}"
+    base_unit = int(hashlib.sha1(street_key.encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
+    base = low + round(base_unit * (high - low))
+    noise = int(hashlib.sha1(segment_id.encode()).hexdigest()[:2], 16) % 11 - 5
+    return max(low, min(high, base + noise))
 
 
 def iso_z(timestamp: datetime) -> str:
@@ -276,7 +300,7 @@ def build_prediction(segment_id: str) -> PredictionResponse:
         segment["parking_type"],
         SEGMENT_BASELINES["unknown"],
     )
-    base_percent = demo_segment_percent(segment["id"], base_percent)
+    base_percent = simulated_segment_percent(segment, base_percent)
     total_delta = report_delta + signal_delta(signals) + time_adjustment()
     percent = max(5, min(95, base_percent + total_delta))
     search_time = max(3, min(35, base_time - round(total_delta / 3)))

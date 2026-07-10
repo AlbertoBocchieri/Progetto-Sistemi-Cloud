@@ -19,7 +19,8 @@ def main() -> None:
         "parking_segments.id LIKE 'ct-%'",
         "NOT EXISTS",
         "SEGMENT_HEATMAP_CACHE_VERSION",
-        "road-backed-ct-osm-fallback-v2",
+        "road-backed-osm-auto-v1",
+        "simulated_segment_percent",
     ]
     require("services/zone-service/app/main.py", needles)
     require("services/prediction-service/app/main.py", needles)

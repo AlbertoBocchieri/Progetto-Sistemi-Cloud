@@ -232,8 +232,11 @@ def render_sql(rows: list[str], road_node_rows: list[str] | None = None, road_ed
         "DELETE FROM road_edges WHERE id LIKE 'osm-road-%';",
         "DELETE FROM road_nodes WHERE id LIKE 'osm-node-%';",
         "DELETE FROM segment_reports WHERE segment_id LIKE 'ct-osm-%';",
+        "DELETE FROM segment_reports WHERE segment_id LIKE 'ct-%' AND segment_id NOT LIKE 'ct-osm-%';",
         "UPDATE parking_lots SET segment_id = NULL WHERE segment_id LIKE 'ct-osm-%';",
+        "UPDATE parking_lots SET segment_id = NULL WHERE segment_id LIKE 'ct-%' AND segment_id NOT LIKE 'ct-osm-%';",
         "DELETE FROM parking_segments WHERE id LIKE 'ct-osm-%';",
+        "DELETE FROM parking_segments WHERE id LIKE 'ct-%' AND id NOT LIKE 'ct-osm-%';",
     ]
     if road_node_rows:
         lines.append(

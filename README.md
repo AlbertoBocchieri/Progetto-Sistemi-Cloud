@@ -64,7 +64,7 @@ http://localhost:15672
 
 Credenziali demo RabbitMQ: `parcheggia` / `parcheggia`.
 
-Non serve un file `.env` per la demo locale: senza API key esterne l'app usa dati demo, predizioni locali, suggerimenti fallback e TTS del browser. Per verificare lo stack dopo l'avvio:
+Non serve un file `.env` per la demo locale: senza API key esterne l'app carica automaticamente i segmenti OSM di Catania, usa stime simulate locali, suggerimenti fallback e TTS del browser. Per verificare lo stack dopo l'avvio:
 
 ```bash
 scripts/smoke_test.sh
@@ -73,7 +73,7 @@ scripts/e2e_demo_test.sh
 
 ## Segmenti OSM Catania
 
-Con i container avviati, importa o aggiorna i segmenti stradali OSM del Comune di Catania:
+I segmenti stradali OSM del Comune di Catania sono gia' inclusi in `data/osm/catania_segments.sql` e vengono caricati da `docker compose up`. Per rigenerarli manualmente:
 
 ```bash
 python3 scripts/import_osm_segments.py --fetch --output data/osm/catania_segments.sql

@@ -82,7 +82,7 @@ ROAD_BACKED_SEGMENT_SQL = (
     "    )\n"
     ")"
 )
-SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-ct-osm-fallback-v2"
+SEGMENT_HEATMAP_CACHE_VERSION = "road-backed-osm-auto-v1"
 
 ZONE_COLUMNS = """
     id,
@@ -325,6 +325,30 @@ def demo_segment_percent(segment_id: str, fallback: int) -> int:
     return DEMO_SEGMENT_PERCENTS.get(road_id, fallback)
 
 
+SIMULATED_PERCENT_RANGES = {
+    "blue": (28, 72),
+    "probable_free": (22, 78),
+    "restricted": (5, 24),
+    "unknown": (24, 62),
+}
+
+
+def simulated_segment_percent(segment: dict[str, Any], fallback: int) -> int:
+    segment_id = segment["id"]
+    if not segment_id.startswith("ct-osm-"):
+        return demo_segment_percent(segment_id, fallback)
+
+    low, high = SIMULATED_PERCENT_RANGES.get(
+        segment.get("parking_type"),
+        SIMULATED_PERCENT_RANGES["unknown"],
+    )
+    street_key = f"{segment.get('street_name', '')}:{segment.get('parking_type', '')}"
+    base_unit = int(hashlib.sha1(street_key.encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
+    base = low + round(base_unit * (high - low))
+    noise = int(hashlib.sha1(segment_id.encode()).hexdigest()[:2], 16) % 11 - 5
+    return max(low, min(high, base + noise))
+
+
 def report_adjustment(found_spot: Any, full_zone: Any, released_spot: Any = 0, parking_closed: Any = 0) -> int:
     found = float(found_spot or 0)
     full = float(full_zone or 0)
@@ -448,7 +472,7 @@ def segment_prediction_from_row(
 
     signal_delta = signal_adjustment(signals)
     total_delta = report_delta + signal_delta + time_adjustment()
-    base_percent = demo_segment_percent(segment_id, int(baseline["percent"]))
+    base_percent = simulated_segment_percent(segment, int(baseline["percent"]))
     percent = max(4, min(92, base_percent + total_delta))
     search_time = max(3, min(38, int(baseline["search_time"]) - round(total_delta / 3)))
     trend = "stable"

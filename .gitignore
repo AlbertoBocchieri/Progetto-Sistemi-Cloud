@@ -25,5 +25,8 @@ node_modules/
 dist/
 build/
 
-data/osm/
+data/osm/*
+!data/osm/
+!data/osm/catania_segments.sql
+!data/osm/catania_blue_overrides.sql
 tmp_*.mp3

@@ -23,6 +23,7 @@ services:
       PGPASSWORD: parcheggia
     volumes:
       - ./services/zone-service/migrations:/migrations:ro
+      - ./data/osm:/osm:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,7 +31,7 @@ services:
       [
         "sh",
         "-c",
-        "for i in $$(seq 1 60); do pg_isready -h postgres -U parcheggia -d parcheggia && exec psql -h postgres -U parcheggia -d parcheggia -f /migrations/001_create_zones.sql; sleep 1; done; exit 1"
+        "for i in $$(seq 1 60); do pg_isready -h postgres -U parcheggia -d parcheggia && break; sleep 1; done; pg_isready -h postgres -U parcheggia -d parcheggia || exit 1; psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /migrations/001_create_zones.sql; test ! -f /osm/catania_segments.sql || psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /osm/catania_segments.sql; test ! -f /osm/catania_blue_overrides.sql || psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /osm/catania_blue_overrides.sql"
       ]
 
   redis:

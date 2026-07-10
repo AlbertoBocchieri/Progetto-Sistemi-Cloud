@@ -28,6 +28,10 @@ SEGMENT_ID="$(
   curl -fsS "$API_URL/segments/current?lat=37.507&lon=15.083" |
     python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])'
 )"
+case "$SEGMENT_ID" in
+  ct-osm-*) ;;
+  *) echo "Expected OSM-backed segment, got $SEGMENT_ID" >&2; exit 1 ;;
+esac
 SCENARIO_SEGMENT_ID="$SEGMENT_ID"
 curl -fsS "$API_URL/segments/$SEGMENT_ID" | grep -q "parking_lots"
 TOMTOM_POIS_CODE="$(
@@ -40,7 +44,7 @@ curl -fsS "$API_URL/segments/nearby?lat=37.507&lon=15.083&radius_m=500" | grep -
 curl -fsS "$API_URL/road-network?lat=37.507&lon=15.083&radius_m=700" | grep -q "edges"
 curl -fsS "$API_URL/segments/$SEGMENT_ID/prediction" | grep -q "parkability_percent"
 curl -fsS "$API_URL/segments/$SCENARIO_SEGMENT_ID/prediction" | grep -q "parkability_percent"
-curl -fsS "$API_URL/segment-heatmap?bbox=15.073,37.500,15.093,37.516&zoom=18" | grep -q "heatmap_intensity"
+curl -fsS "$API_URL/segment-heatmap?bbox=15.073,37.500,15.093,37.516&zoom=18" | grep -q "ct-osm-"
 SESSION_ID="$(
   curl -fsS -X POST "$API_URL/live-sessions/start" |
     python3 -c 'import json,sys; print(json.load(sys.stdin)["session_id"])'
