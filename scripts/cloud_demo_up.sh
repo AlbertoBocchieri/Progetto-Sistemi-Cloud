@@ -79,8 +79,11 @@ if [ -z "$url" ]; then
 fi
 
 echo
-echo "ParcheggIA cloud pronta:"
+echo "Load Balancer assegnato:"
 echo "$url"
+
+lb_name="${host%%-*}"
+aws elb wait instance-in-service --load-balancer-name "$lb_name" >/dev/null 2>&1 || true
 
 ready=false
 for _ in $(seq 1 60); do
@@ -101,6 +104,10 @@ fi
 
 if [ "$ready" != "true" ]; then
   echo "Nota: URL assegnato, ma il controllo HTTP non e' ancora riuscito. Riprova fra 1-2 minuti." >&2
+else
+  echo
+  echo "ParcheggIA cloud pronta:"
+  echo "$url"
 fi
 
 echo
