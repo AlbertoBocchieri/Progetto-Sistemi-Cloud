@@ -21,7 +21,21 @@ on:
           - "false"
 
 jobs:
+  aws-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check AWS repository secrets
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error title=Missing AWS credentials::Set repository secrets AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in GitHub Actions."
+            exit 1
+          fi
+
   deploy:
+    needs: aws-secrets
     runs-on: ubuntu-latest
     env:
       AWS_REGION: eu-south-1
