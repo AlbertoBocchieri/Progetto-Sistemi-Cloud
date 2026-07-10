@@ -674,7 +674,7 @@ function renderAiSuggestion(explanation, options = {}) {
     syncAiHud();
     return;
   }
-  const badge = "Suggerimento";
+  const badge = explanation.model === "simulated-fallback" ? "Simulazione" : "Suggerimento";
   const cached = explanation.cached ? " · cache" : "";
   const percent = state.prediction ? `${state.prediction.parkability_percent}%` : "--%";
   const summary = explanation.summary || explanation.explanation || "Suggerimento non disponibile.";

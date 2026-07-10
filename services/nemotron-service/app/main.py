@@ -246,6 +246,23 @@ def risk_for_status(request: ExplainRequest) -> str:
     return "Rischio contenuto."
 
 
+def fallback_target_ids(request: ExplainRequest) -> tuple[list[str], list[str]]:
+    segment_ids: list[str] = []
+    for candidate in nearby_candidates(request):
+        candidate_id = str(candidate.get("id") or "")
+        if candidate_id and candidate["parkability_percent"] >= request.parkability_percent + 8:
+            segment_ids.append(candidate_id)
+    pois = request.context.get("parking_pois") if isinstance(request.context, dict) else None
+    poi_ids = [
+        str(item.get("id"))
+        for item in (pois or [])[:1]
+        if isinstance(item, dict) and item.get("id") and (request.parkability_percent < 35 or not segment_ids)
+    ]
+    if not segment_ids and request.segment_id and request.parkability_percent >= 50:
+        segment_ids.append(request.segment_id)
+    return segment_ids[:2], poi_ids
+
+
 def fallback_explanation(request: ExplainRequest, cached: bool = False) -> ExplainResponse:
     trend_text = {
         "better": "in miglioramento",
@@ -265,14 +282,17 @@ def fallback_explanation(request: ExplainRequest, cached: bool = False) -> Expla
         f"Affidabilita {round(request.confidence * 100)}%. "
         "Suggerimento basato sui dati locali disponibili."
     )
+    target_segment_ids, target_parking_poi_ids = fallback_target_ids(request)
     return ExplainResponse(
-        model="rule-based-fallback",
+        model="simulated-fallback" if not NEMOTRON_API_KEY else "rule-based-fallback",
         summary=f"{name}: {request.parkability_percent}% di probabilita stimata.",
         explanation=explanation,
         action=action_for_status(request),
         reason=f"Confronto percentuale, tipo sosta e alternative vicine.",
         risk=risk_for_status(request),
         caveat=caveat,
+        target_segment_ids=target_segment_ids,
+        target_parking_poi_ids=target_parking_poi_ids,
         cached=cached,
     )
 
@@ -573,7 +593,7 @@ def health_check() -> dict[str, str]:
 
 @app.get("/ready")
 def readiness_check() -> dict[str, str]:
-    mode = "nemotron" if NEMOTRON_API_KEY else "rule-based-fallback"
+    mode = "nemotron" if NEMOTRON_API_KEY else "simulated-fallback"
     return {"status": "ready", "mode": mode, "model": NEMOTRON_MODEL}
 
 

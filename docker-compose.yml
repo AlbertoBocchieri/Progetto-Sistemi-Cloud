@@ -28,11 +28,20 @@ services:
       postgres:
         condition: service_healthy
     command:
-      [
-        "sh",
-        "-c",
-        "for i in $$(seq 1 60); do pg_isready -h postgres -U parcheggia -d parcheggia && break; sleep 1; done; pg_isready -h postgres -U parcheggia -d parcheggia || exit 1; psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /migrations/001_create_zones.sql; test ! -f /osm/catania_segments.sql || psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /osm/catania_segments.sql; test ! -f /osm/catania_blue_overrides.sql || psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /osm/catania_blue_overrides.sql"
-      ]
+      - sh
+      - -c
+      - |
+        for i in $$(seq 1 60); do
+          pg_isready -h postgres -U parcheggia -d parcheggia && break
+          sleep 1
+        done
+        pg_isready -h postgres -U parcheggia -d parcheggia || exit 1
+        psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /migrations/001_create_zones.sql
+        osm_count="$$(psql -tAc "SELECT COUNT(*) FROM parking_segments WHERE id LIKE 'ct-osm-%'" -h postgres -U parcheggia -d parcheggia)"
+        if [ "$$osm_count" = "0" ] && [ -f /osm/catania_segments.sql ]; then
+          psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /osm/catania_segments.sql
+        fi
+        test ! -f /osm/catania_blue_overrides.sql || psql -v ON_ERROR_STOP=1 -h postgres -U parcheggia -d parcheggia -f /osm/catania_blue_overrides.sql
 
   redis:
     image: redis:7

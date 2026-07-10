@@ -112,7 +112,7 @@ def main() -> None:
             "Material+Symbols",
             "Stato e demo",
             "Simula guida 500 m",
-            "ai-only-nano-theme",
+            "simulated-ai-tts",
         ],
         "HTML",
     )
