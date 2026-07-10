@@ -78,16 +78,31 @@ if [ -z "$url" ]; then
   exit 3
 fi
 
+echo
+echo "ParcheggIA cloud pronta:"
+echo "$url"
+
+ready=false
 for _ in $(seq 1 60); do
   if curl -fsS --max-time 5 "$url/" >/dev/null 2>&1; then
+    ready=true
     break
   fi
   sleep 5
 done
 
-echo
-echo "ParcheggIA cloud pronta:"
-echo "$url"
+if [ "$ready" != "true" ] && command -v dig >/dev/null 2>&1; then
+  ip="$(dig +short @1.1.1.1 "${url#http://}" | head -1)"
+  if [ -n "$ip" ] && curl --resolve "${url#http://}:80:$ip" -fsS --max-time 5 "$url/" >/dev/null 2>&1; then
+    echo "Nota: l'app risponde, ma il DNS locale potrebbe dover aggiornare la cache per qualche minuto."
+    ready=true
+  fi
+fi
+
+if [ "$ready" != "true" ]; then
+  echo "Nota: URL assegnato, ma il controllo HTTP non e' ancora riuscito. Riprova fra 1-2 minuti." >&2
+fi
+
 echo
 echo "Quando hai finito:"
 echo "CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh"
