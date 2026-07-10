@@ -1,0 +1,407 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: parcheggia
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+  namespace: parcheggia
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-init
+          image: postgis/postgis:16-3.4
+          envFrom:
+            - configMapRef:
+                name: parcheggia-runtime
+            - secretRef:
+                name: parcheggia-secrets
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 2; done
+              psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /migrations/001_create_zones.sql
+          volumeMounts:
+            - name: zone-migrations
+              mountPath: /migrations
+      volumes:
+        - name: zone-migrations
+          configMap:
+            name: zone-migrations
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zone-service
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zone-service
+  template:
+    metadata:
+      labels:
+        app: zone-service
+    spec:
+      containers:
+        - name: zone-service
+          image: progetto-sistemi-cloud-zone-service:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: parcheggia-runtime
+            - secretRef:
+                name: parcheggia-secrets
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zone-service
+  namespace: parcheggia
+spec:
+  selector:
+    app: zone-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prediction-service
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prediction-service
+  template:
+    metadata:
+      labels:
+        app: prediction-service
+    spec:
+      containers:
+        - name: prediction-service
+          image: progetto-sistemi-cloud-prediction-service:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: parcheggia-runtime
+            - secretRef:
+                name: parcheggia-secrets
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prediction-service
+  namespace: parcheggia
+spec:
+  selector:
+    app: prediction-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: prediction-service
+  namespace: parcheggia
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: prediction-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: location-service
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: location-service
+  template:
+    metadata:
+      labels:
+        app: location-service
+    spec:
+      containers:
+        - name: location-service
+          image: progetto-sistemi-cloud-location-service:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: parcheggia-runtime
+            - secretRef:
+                name: parcheggia-secrets
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: location-service
+  namespace: parcheggia
+spec:
+  selector:
+    app: location-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-service
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-service
+  template:
+    metadata:
+      labels:
+        app: admin-service
+    spec:
+      containers:
+        - name: admin-service
+          image: progetto-sistemi-cloud-admin-service:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: parcheggia-runtime
+            - secretRef:
+                name: parcheggia-secrets
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-service
+  namespace: parcheggia
+spec:
+  selector:
+    app: admin-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingestion-service
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ingestion-service
+  template:
+    metadata:
+      labels:
+        app: ingestion-service
+    spec:
+      containers:
+        - name: ingestion-service
+          image: progetto-sistemi-cloud-ingestion-service:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: parcheggia-runtime
+            - secretRef:
+                name: parcheggia-secrets
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingestion-service
+  namespace: parcheggia
+spec:
+  selector:
+    app: ingestion-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemotron-service
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nemotron-service
+  template:
+    metadata:
+      labels:
+        app: nemotron-service
+    spec:
+      containers:
+        - name: nemotron-service
+          image: progetto-sistemi-cloud-nemotron-service:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: parcheggia-runtime
+            - secretRef:
+                name: parcheggia-secrets
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemotron-service
+  namespace: parcheggia
+spec:
+  selector:
+    app: nemotron-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: progetto-sistemi-cloud-api-gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: parcheggia
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: parcheggia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: progetto-sistemi-cloud-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: parcheggia
+spec:
+  type: LoadBalancer
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80

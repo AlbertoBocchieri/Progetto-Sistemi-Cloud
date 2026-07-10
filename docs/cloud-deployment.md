@@ -44,7 +44,15 @@ mq_password = "..."
 scripts/aws_ecr_push.sh
 ```
 
-5. Applicare manifest Kubernetes adattati agli endpoint gestiti AWS.
+5. Applicare manifest Kubernetes cloud adattato agli endpoint gestiti AWS.
+
+```bash
+scripts/k8s_cloud_config_from_aws.sh
+kubectl -n parcheggia create configmap zone-migrations \
+  --from-file=001_create_zones.sql=services/zone-service/migrations/001_create_zones.sql \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f infrastructure/k8s/cloud-demo.yaml
+```
 
 6. Eseguire smoke test via port-forward o ingress.
 
@@ -106,6 +114,20 @@ Per generare un Secret Kubernetes da SSM quando il cluster e' attivo:
 ```bash
 scripts/k8s_secret_from_ssm.sh
 ```
+
+Per generare ConfigMap e Secret completi per il deploy cloud, usando output Terraform e SSM:
+
+```bash
+scripts/k8s_cloud_config_from_aws.sh
+```
+
+Validazione locale del manifest cloud senza creare risorse:
+
+```bash
+scripts/k8s_cloud_dry_run.sh
+```
+
+Lo script usa sempre `kubeconform` offline. Se un cluster e' raggiungibile, esegue anche `kubectl apply --dry-run=client`.
 
 ## Cost Guardrails
 

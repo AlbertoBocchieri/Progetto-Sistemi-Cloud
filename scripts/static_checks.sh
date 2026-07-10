@@ -16,6 +16,7 @@ find scripts -name "*.sh" -exec sh -n {} +
 
 if command -v kubeconform >/dev/null 2>&1; then
   kubeconform -strict -summary infrastructure/k8s/local-demo.yaml
+  kubeconform -strict -summary infrastructure/k8s/cloud-demo.yaml
 fi
 
 if command -v docker >/dev/null 2>&1; then
