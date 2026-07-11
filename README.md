@@ -16,7 +16,7 @@ Prerequisiti minimi:
 
 - Docker o runtime Docker-compatible attivo;
 - Git;
-- shell Unix/macOS/Linux;
+- shell Unix/macOS/Linux, oppure Windows con WSL2;
 - circa 4-8 GB liberi per immagini, database e servizi.
 
 Clone e avvio locale:
@@ -53,17 +53,58 @@ Reset completo, inclusi dati PostgreSQL:
 docker compose down -v
 ```
 
+### Windows
+
+Windows e' supportato tramite WSL2, non come target nativo PowerShell/CMD.
+
+Setup consigliato:
+
+- installare WSL2 con Ubuntu;
+- installare Docker Desktop;
+- abilitare l'integrazione Docker Desktop con la distribuzione Ubuntu WSL;
+- clonare la repo dentro il filesystem Linux, per esempio in `~/Progetto-Sistemi-Cloud`, non dentro `/mnt/c/...`;
+- eseguire tutti i comandi `docker compose` e `scripts/*.sh` dal terminale Ubuntu WSL;
+- aprire la GUI dal browser Windows su `http://localhost:8080`.
+
+Comandi dentro Ubuntu WSL:
+
+```bash
+sudo apt update
+sudo apt install -y git curl
+git clone https://github.com/AlbertoBocchieri/Progetto-Sistemi-Cloud.git
+cd Progetto-Sistemi-Cloud
+docker compose up -d --build
+```
+
+Verifica da WSL:
+
+```bash
+docker compose ps
+curl -fsS http://localhost:8080 >/dev/null
+scripts/smoke_test.sh
+```
+
+Note pratiche:
+
+- Docker Desktop deve essere avviato prima di `docker compose up`;
+- se i container sono lenti o vanno in errore, aumentare RAM/CPU assegnate a Docker Desktop;
+- non convertire gli script `.sh` in formato CRLF;
+- se uno script risulta non eseguibile, usare `chmod +x scripts/*.sh`;
+- per il reset completo vale lo stesso comando: `docker compose down -v`.
+
 ## Simulazione architettura cloud in locale
 
 Questa modalita' serve per mostrare la stessa architettura a microservizi su Kubernetes senza creare risorse cloud.
 
-Prerequisiti:
+Prerequisiti macOS:
 
 ```bash
 brew install colima k3d kubernetes-cli helm
 ```
 
-Avvio Colima se serve:
+Su Windows usare Ubuntu WSL2 + Docker Desktop, con `k3d`, `kubectl` e `helm` disponibili nel PATH di WSL. Non usare `scripts/colima_start.sh`, perche' Colima non e' il runtime Windows.
+
+Avvio Colima su macOS se serve:
 
 ```bash
 scripts/colima_start.sh
