@@ -110,6 +110,7 @@ PARCHEGGIA_ECR_BASE
 
 Per la demo cloud usiamo Systems Manager Parameter Store standard sotto `/parcheggia/dev`.
 I valori sensibili sono `SecureString`, le opzioni non sensibili sono `String`.
+Le API key esterne sono opzionali: se TomTom, Nemotron o ElevenLabs non sono presenti in SSM, il Secret Kubernetes viene creato con valori vuoti e l'app usa fallback/simulazioni.
 
 Caricamento da `.env` locale senza stampare i valori:
 
@@ -128,11 +129,11 @@ scripts/aws_ssm_check_config.sh
 Parametri principali:
 
 ```text
-/parcheggia/dev/secrets/tomtom-api-key
-/parcheggia/dev/secrets/nemotron-api-key
-/parcheggia/dev/secrets/elevenlabs-api-key
-/parcheggia/dev/secrets/postgres-password
-/parcheggia/dev/secrets/rabbitmq-password
+/parcheggia/dev/secrets/postgres-password   obbligatorio, generato se assente
+/parcheggia/dev/secrets/rabbitmq-password   obbligatorio, generato se assente
+/parcheggia/dev/secrets/tomtom-api-key      opzionale
+/parcheggia/dev/secrets/nemotron-api-key    opzionale
+/parcheggia/dev/secrets/elevenlabs-api-key  opzionale
 ```
 
 Per generare un Secret Kubernetes da SSM quando il cluster e' attivo:

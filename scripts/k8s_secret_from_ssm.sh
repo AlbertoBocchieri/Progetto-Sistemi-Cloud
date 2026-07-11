@@ -28,15 +28,23 @@ get_parameter() {
     --output text
 }
 
+get_parameter_optional() {
+  aws ssm get-parameter \
+    --name "$1" \
+    --with-decryption \
+    --query 'Parameter.Value' \
+    --output text 2>/dev/null || true
+}
+
 {
   printf 'POSTGRES_DB=parcheggia\n'
   printf 'POSTGRES_USER=parcheggia\n'
   printf 'POSTGRES_PASSWORD=%s\n' "$(get_parameter "$SSM_PREFIX/secrets/postgres-password")"
   printf 'RABBITMQ_DEFAULT_USER=parcheggia\n'
   printf 'RABBITMQ_DEFAULT_PASS=%s\n' "$(get_parameter "$SSM_PREFIX/secrets/rabbitmq-password")"
-  printf 'TOMTOM_API_KEY=%s\n' "$(get_parameter "$SSM_PREFIX/secrets/tomtom-api-key")"
-  printf 'NEMOTRON_API_KEY=%s\n' "$(get_parameter "$SSM_PREFIX/secrets/nemotron-api-key")"
-  printf 'ELEVENLABS_API_KEY=%s\n' "$(get_parameter "$SSM_PREFIX/secrets/elevenlabs-api-key")"
+  printf 'TOMTOM_API_KEY=%s\n' "$(get_parameter_optional "$SSM_PREFIX/secrets/tomtom-api-key")"
+  printf 'NEMOTRON_API_KEY=%s\n' "$(get_parameter_optional "$SSM_PREFIX/secrets/nemotron-api-key")"
+  printf 'ELEVENLABS_API_KEY=%s\n' "$(get_parameter_optional "$SSM_PREFIX/secrets/elevenlabs-api-key")"
 } >"$tmp"
 
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
