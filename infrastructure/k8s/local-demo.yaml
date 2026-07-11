@@ -436,6 +436,8 @@ spec:
               value: amqp://parcheggia:parcheggia@rabbitmq:5672/%2F
             - name: EVENT_EXCHANGE
               value: parcheggia.events
+            - name: REDIS_URL
+              value: redis://redis:6379/0
           ports:
             - containerPort: 8000
           readinessProbe:

@@ -156,6 +156,24 @@ scripts/k3d_prepare_local.sh
 scripts/k8s_apply_local.sh
 ```
 
+Per simulare l'architettura cloud senza account AWS e senza API key esterne:
+
+```bash
+scripts/cloud_sim_local_up.sh
+```
+
+Questo avvia un cluster k3d, deploya i microservizi su Kubernetes, importa i segmenti OSM reali, usa prediction/suggerimenti/TTS simulati e restituisce l'URL locale:
+
+```text
+http://localhost:18080
+```
+
+Spegnimento:
+
+```bash
+scripts/cloud_sim_local_down.sh
+```
+
 ## IaC e AWS
 
 Ansible e Terraform sono documentati in [docs/iac-aws.md](docs/iac-aws.md).

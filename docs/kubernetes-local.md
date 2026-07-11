@@ -26,6 +26,21 @@ scripts/k3d_prepare_local.sh
 scripts/k8s_apply_local.sh
 ```
 
+Percorso unico consigliato per simulare la cloud architecture senza AWS:
+
+```bash
+scripts/cloud_sim_local_up.sh
+```
+
+Lo script:
+
+- crea o riusa il cluster k3d `parcheggia`;
+- builda e importa le immagini Docker nel cluster;
+- deploya PostgreSQL/PostGIS, Redis, RabbitMQ e microservizi;
+- importa i segmenti OSM reali di Catania e gli override strisce blu;
+- non richiede chiavi TomTom, Nemotron o ElevenLabs;
+- apre il frontend su `http://localhost:18080`.
+
 Build immagini:
 
 ```bash
@@ -64,6 +79,8 @@ Smoke test:
 scripts/k8s_smoke_test.sh
 ```
 
+Se usi `cloud_sim_local_up.sh`, lo smoke test viene eseguito automaticamente sulle porte `180xx`.
+
 Gate verificato il 2026-07-07 su macOS Sequoia:
 
 ```text
@@ -73,6 +90,12 @@ smoke/E2E/load via port-forward -> OK
 ```
 
 Spegnimento dopo la demo:
+
+```bash
+scripts/cloud_sim_local_down.sh
+```
+
+Comandi manuali equivalenti:
 
 ```bash
 k3d cluster delete parcheggia

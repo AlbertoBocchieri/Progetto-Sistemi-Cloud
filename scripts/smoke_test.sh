@@ -8,6 +8,7 @@ PREDICTION_URL="${4:-http://localhost:8004}"
 LOCATION_URL="${5:-http://localhost:8005}"
 ADMIN_URL="${6:-http://localhost:8006}"
 NEMOTRON_URL="${7:-http://localhost:8003}"
+FRONTEND_URL="${8:-${FRONTEND_URL:-http://localhost:8080}}"
 
 curl -fsS "$API_URL/ready" >/dev/null
 curl -fsS "$API_URL/metrics" | grep -q "parcheggia_http_requests_total"
@@ -71,7 +72,7 @@ if [ "$SCENARIO_OK" -ne 1 ]; then
   echo "Scenario signal not observed for $SCENARIO_SEGMENT_ID; continuing."
 fi
 curl -fsS "$API_URL/admin/events" | grep -q "traffic.snapshot.received"
-curl -fsS "http://localhost:8080" | grep -q "Dashboard admin"
+curl -fsS "$FRONTEND_URL" | grep -q "Dashboard admin"
 curl -fsS \
   -H "Content-Type: application/json" \
   -d '{"segment_id":"'"$SEGMENT_ID"'","segment_name":"Via Etnea","parkability_percent":28,"status":"difficult","trend":"worse","confidence":0.72,"estimated_search_time_min":22,"recommendation":"Tratto difficile"}' \

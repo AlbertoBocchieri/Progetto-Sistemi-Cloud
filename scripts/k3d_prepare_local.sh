@@ -17,9 +17,12 @@ if ! k3d cluster list "$CLUSTER_NAME" >/dev/null 2>&1; then
   k3d cluster create "$CLUSTER_NAME" --servers 1 --agents 0 --wait
 fi
 
+k3d kubeconfig merge "$CLUSTER_NAME" --kubeconfig-switch-context >/dev/null
+kubectl config use-context "k3d-$CLUSTER_NAME" >/dev/null
+
 docker compose build
 
-for image in \
+IMAGES="
   progetto-sistemi-cloud-api-gateway:latest \
   progetto-sistemi-cloud-frontend:latest \
   progetto-sistemi-cloud-zone-service:latest \
@@ -28,8 +31,7 @@ for image in \
   progetto-sistemi-cloud-prediction-service:latest \
   progetto-sistemi-cloud-location-service:latest \
   progetto-sistemi-cloud-admin-service:latest
-do
-  k3d image import "$image" -c "$CLUSTER_NAME"
-done
+"
+k3d image import $IMAGES -c "$CLUSTER_NAME"
 
 echo "k3d cluster ready: $CLUSTER_NAME"

@@ -12,6 +12,32 @@
 | Log container | CloudWatch |
 | CI locale | GitHub Actions |
 
+## Simulazione Cloud Senza AWS
+
+Per mostrare la stessa topologia a microservizi su Kubernetes senza creare risorse cloud:
+
+```bash
+scripts/cloud_sim_local_up.sh
+```
+
+Questa modalita' usa k3d come sostituto locale di EKS e container locali al posto dei servizi gestiti AWS:
+
+| Simulazione k3d | Servizio AWS reale |
+|---|---|
+| Deployment Kubernetes | EKS |
+| Pod PostgreSQL/PostGIS | RDS PostgreSQL |
+| Pod Redis | ElastiCache Redis |
+| Pod RabbitMQ | Amazon MQ for RabbitMQ |
+| Immagini Docker locali importate in k3d | ECR |
+
+Non servono API key: TomTom, Nemotron ed ElevenLabs restano spenti e la demo usa dati/suggerimenti/TTS simulati.
+
+Spegnimento:
+
+```bash
+scripts/cloud_sim_local_down.sh
+```
+
 ## Sequenza Consigliata
 
 1. Validare demo locale:
