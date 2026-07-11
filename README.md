@@ -53,6 +53,130 @@ Reset completo, inclusi dati PostgreSQL:
 docker compose down -v
 ```
 
+## Simulazione architettura cloud in locale
+
+Questa modalita' serve per mostrare la stessa architettura a microservizi su Kubernetes senza creare risorse cloud.
+
+Prerequisiti:
+
+```bash
+brew install colima k3d kubernetes-cli helm
+```
+
+Avvio Colima se serve:
+
+```bash
+scripts/colima_start.sh
+```
+
+Avvio simulazione cloud locale:
+
+```bash
+scripts/cloud_sim_local_up.sh
+```
+
+Lo script:
+
+- crea o riusa il cluster k3d `parcheggia`;
+- forza il context kubectl su `k3d-parcheggia`;
+- builda le immagini Docker;
+- importa le immagini nel cluster;
+- deploya PostgreSQL/PostGIS, Redis, RabbitMQ e microservizi;
+- importa segmenti OSM reali e override strisce blu;
+- esegue smoke test automatico;
+- apre il frontend su:
+
+```text
+http://localhost:18080
+```
+
+Il terminale deve restare aperto per mantenere i port-forward.
+
+Stop:
+
+```bash
+scripts/cloud_sim_local_down.sh
+```
+
+Mapping simulazione -> AWS:
+
+| k3d locale | AWS reale |
+|---|---|
+| Deployment Kubernetes | EKS |
+| Pod PostgreSQL/PostGIS | RDS PostgreSQL |
+| Pod Redis | ElastiCache Redis |
+| Pod RabbitMQ | Amazon MQ for RabbitMQ |
+| immagini Docker importate in k3d | ECR |
+| port-forward locale | Load Balancer AWS |
+
+## Deploy cloud reale
+
+La repo contiene Terraform e script per accendere una demo cloud reale.
+
+Attenzione: senza API key esterne non consumi TomTom/Nemotron/ElevenLabs, ma AWS crea risorse a costo continuo: EKS, nodi EC2, RDS, ElastiCache, Amazon MQ e Load Balancer. Usare solo per demo brevi e spegnere subito.
+
+Prerequisiti:
+
+- account AWS configurato;
+- AWS CLI autenticata;
+- Terraform;
+- kubectl;
+- Docker runtime;
+- permessi per EKS, EC2/VPC, ECR, RDS, ElastiCache, Amazon MQ, SSM, CloudWatch, Lambda/EventBridge se usi auto-spegnimento.
+
+Setup iniziale:
+
+```bash
+export AWS_PROFILE=parcheggia-dev
+export AWS_REGION=eu-south-1
+scripts/terraform_backend_bootstrap.sh
+terraform -chdir=infrastructure/terraform/aws init -migrate-state
+scripts/aws_ssm_sync_env.sh
+```
+
+`aws_ssm_sync_env.sh` genera o mantiene:
+
+```text
+/parcheggia/dev/secrets/postgres-password
+/parcheggia/dev/secrets/rabbitmq-password
+```
+
+Le API key esterne sono opzionali:
+
+```text
+/parcheggia/dev/secrets/tomtom-api-key
+/parcheggia/dev/secrets/nemotron-api-key
+/parcheggia/dev/secrets/elevenlabs-api-key
+```
+
+Accensione demo cloud:
+
+```bash
+CONFIRM_APPLY=apply-parcheggia-dev scripts/cloud_demo_up.sh
+```
+
+Lo script:
+
+1. abilita `enable_cloud_stack=true`;
+2. esegue Terraform;
+3. crea/usa ECR;
+4. builda e pusha immagini;
+5. aggiorna kubeconfig EKS;
+6. crea ConfigMap/Secret Kubernetes da Terraform output + SSM;
+7. applica `infrastructure/k8s/cloud-demo.yaml`;
+8. importa OSM su RDS;
+9. attende rollout;
+10. stampa URL del Load Balancer;
+11. programma auto-spegnimento, default 4 ore.
+
+Spegnimento obbligatorio:
+
+```bash
+CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh
+```
+
+Nota per account AWS diversi: `infrastructure/terraform/aws/backend.tf` punta a uno state S3 specifico. Su un altro account bisogna creare il bucket con `scripts/terraform_backend_bootstrap.sh` e usare un backend coerente con quell'account.
+
 ## Cosa funziona senza API key
 
 La demo e' progettata per funzionare dopo un clone pulito.
@@ -651,130 +775,6 @@ Kubernetes smoke:
 ```bash
 scripts/k8s_smoke_test.sh
 ```
-
-## Kubernetes locale: simulazione cloud senza AWS
-
-Questa modalita' serve per mostrare la stessa architettura a microservizi su Kubernetes senza creare risorse cloud.
-
-Prerequisiti:
-
-```bash
-brew install colima k3d kubernetes-cli helm
-```
-
-Avvio Colima se serve:
-
-```bash
-scripts/colima_start.sh
-```
-
-Avvio simulazione cloud locale:
-
-```bash
-scripts/cloud_sim_local_up.sh
-```
-
-Lo script:
-
-- crea o riusa il cluster k3d `parcheggia`;
-- forza il context kubectl su `k3d-parcheggia`;
-- builda le immagini Docker;
-- importa le immagini nel cluster;
-- deploya PostgreSQL/PostGIS, Redis, RabbitMQ e microservizi;
-- importa segmenti OSM reali e override strisce blu;
-- esegue smoke test automatico;
-- apre il frontend su:
-
-```text
-http://localhost:18080
-```
-
-Il terminale deve restare aperto per mantenere i port-forward.
-
-Stop:
-
-```bash
-scripts/cloud_sim_local_down.sh
-```
-
-Mapping simulazione -> AWS:
-
-| k3d locale | AWS reale |
-|---|---|
-| Deployment Kubernetes | EKS |
-| Pod PostgreSQL/PostGIS | RDS PostgreSQL |
-| Pod Redis | ElastiCache Redis |
-| Pod RabbitMQ | Amazon MQ for RabbitMQ |
-| immagini Docker importate in k3d | ECR |
-| port-forward locale | Load Balancer AWS |
-
-## AWS reale
-
-La repo contiene Terraform e script per accendere una demo cloud reale.
-
-Attenzione: senza API key esterne non consumi TomTom/Nemotron/ElevenLabs, ma AWS crea risorse a costo continuo: EKS, nodi EC2, RDS, ElastiCache, Amazon MQ e Load Balancer. Usare solo per demo brevi e spegnere subito.
-
-Prerequisiti:
-
-- account AWS configurato;
-- AWS CLI autenticata;
-- Terraform;
-- kubectl;
-- Docker runtime;
-- permessi per EKS, EC2/VPC, ECR, RDS, ElastiCache, Amazon MQ, SSM, CloudWatch, Lambda/EventBridge se usi auto-spegnimento.
-
-Setup iniziale:
-
-```bash
-export AWS_PROFILE=parcheggia-dev
-export AWS_REGION=eu-south-1
-scripts/terraform_backend_bootstrap.sh
-terraform -chdir=infrastructure/terraform/aws init -migrate-state
-scripts/aws_ssm_sync_env.sh
-```
-
-`aws_ssm_sync_env.sh` genera o mantiene:
-
-```text
-/parcheggia/dev/secrets/postgres-password
-/parcheggia/dev/secrets/rabbitmq-password
-```
-
-Le API key esterne sono opzionali:
-
-```text
-/parcheggia/dev/secrets/tomtom-api-key
-/parcheggia/dev/secrets/nemotron-api-key
-/parcheggia/dev/secrets/elevenlabs-api-key
-```
-
-Accensione demo cloud:
-
-```bash
-CONFIRM_APPLY=apply-parcheggia-dev scripts/cloud_demo_up.sh
-```
-
-Lo script:
-
-1. abilita `enable_cloud_stack=true`;
-2. esegue Terraform;
-3. crea/usa ECR;
-4. builda e pusha immagini;
-5. aggiorna kubeconfig EKS;
-6. crea ConfigMap/Secret Kubernetes da Terraform output + SSM;
-7. applica `infrastructure/k8s/cloud-demo.yaml`;
-8. importa OSM su RDS;
-9. attende rollout;
-10. stampa URL del Load Balancer;
-11. programma auto-spegnimento, default 4 ore.
-
-Spegnimento obbligatorio:
-
-```bash
-CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh
-```
-
-Nota per account AWS diversi: `infrastructure/terraform/aws/backend.tf` punta a uno state S3 specifico. Su un altro account bisogna creare il bucket con `scripts/terraform_backend_bootstrap.sh` e usare un backend coerente con quell'account.
 
 ## GitHub Actions
 
