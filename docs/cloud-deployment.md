@@ -70,6 +70,8 @@ mq_password = "..."
 scripts/aws_ecr_push.sh
 ```
 
+`scripts/cloud_demo_up.sh` esegue automaticamente questo step dopo Terraform. Usa `PUSH_IMAGES=false` solo se le immagini sono gia' state pubblicate da CI/CD.
+
 5. Applicare manifest Kubernetes cloud adattato agli endpoint gestiti AWS.
 
 ```bash

@@ -12,6 +12,7 @@ IMPORT_OSM="${IMPORT_OSM:-true}"
 AUTO_DOWN="${AUTO_DOWN:-true}"
 AUTO_DOWN_AFTER_SECONDS="${AUTO_DOWN_AFTER_SECONDS:-14400}"
 AUTO_DOWN_BACKEND="${AUTO_DOWN_BACKEND:-lambda}"
+PUSH_IMAGES="${PUSH_IMAGES:-true}"
 
 if [ "${CONFIRM_APPLY:-}" != "apply-parcheggia-dev" ]; then
   echo "Bloccato: usa CONFIRM_APPLY=apply-parcheggia-dev per accendere risorse AWS." >&2
@@ -26,6 +27,10 @@ command -v kubectl >/dev/null 2>&1 || { echo "kubectl is required." >&2; exit 1;
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required." >&2; exit 1; }
 
 scripts/cloud_up.sh
+
+if [ "$PUSH_IMAGES" = "true" ]; then
+  scripts/aws_ecr_push.sh
+fi
 
 aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME" >/dev/null
 scripts/k8s_cloud_config_from_aws.sh
