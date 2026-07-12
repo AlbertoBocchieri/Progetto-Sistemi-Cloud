@@ -141,14 +141,33 @@ scripts/cloud_sim_local_down.sh
 
 Mapping simulazione -> AWS:
 
-| k3d locale | AWS reale |
-|---|---|
-| Deployment Kubernetes | EKS |
-| Pod PostgreSQL/PostGIS | RDS PostgreSQL |
-| Pod Redis | ElastiCache Redis |
-| Pod RabbitMQ | Amazon MQ for RabbitMQ |
-| immagini Docker importate in k3d | ECR |
-| port-forward locale | Load Balancer AWS |
+```mermaid
+flowchart LR
+    subgraph Locale["Simulazione cloud locale"]
+        K3D["k3d / k3s"]
+        LPOSTGRES["Pod PostgreSQL/PostGIS"]
+        LREDIS["Pod Redis"]
+        LRABBIT["Pod RabbitMQ"]
+        LIMG["Immagini Docker importate in k3d"]
+        LPORT["Port-forward localhost:18080"]
+    end
+
+    subgraph AWS["Deploy cloud reale"]
+        EKS["Amazon EKS"]
+        RDS["Amazon RDS PostgreSQL"]
+        REDIS["Amazon ElastiCache Redis"]
+        MQ["Amazon MQ for RabbitMQ"]
+        ECR["Amazon ECR"]
+        LB["AWS Load Balancer"]
+    end
+
+    K3D --> EKS
+    LPOSTGRES --> RDS
+    LREDIS --> REDIS
+    LRABBIT --> MQ
+    LIMG --> ECR
+    LPORT --> LB
+```
 
 ## Deploy cloud reale
 
@@ -206,6 +225,45 @@ Riferimento ufficiale AWS CLI: <https://docs.aws.amazon.com/cli/latest/reference
 ### Tecnologie AWS usate
 
 Quando `enable_cloud_stack=true`, Terraform e gli script creano questa architettura:
+
+```mermaid
+flowchart TB
+    User["Browser utente"] --> LB["AWS Load Balancer"]
+    LB --> FE["frontend pod"]
+    FE --> GW["api-gateway pod"]
+
+    GW --> ZONE["zone-service"]
+    GW --> PRED["prediction-service"]
+    GW --> LOC["location-service"]
+    GW --> ING["ingestion-service"]
+    GW --> AI["nemotron-service"]
+    GW --> ADM["admin-service"]
+
+    ZONE --> RDS["RDS PostgreSQL 16"]
+    PRED --> RDS
+    LOC --> REDIS["ElastiCache Redis 7"]
+    PRED --> REDIS
+    ZONE --> REDIS
+    ING --> REDIS
+    LOC --> MQ["Amazon MQ for RabbitMQ"]
+    ING --> MQ
+    MQ --> ZONE
+
+    ECR["ECR immagini Docker"] --> EKS["EKS node group t4g.small"]
+    EKS --> FE
+    EKS --> GW
+    EKS --> ZONE
+    EKS --> PRED
+    EKS --> LOC
+    EKS --> ING
+    EKS --> AI
+    EKS --> ADM
+
+    SSM["SSM Parameter Store"] --> EKS
+    EKS --> CW["CloudWatch Logs"]
+    Scheduler["EventBridge Scheduler"] --> Lambda["Lambda auto-down"]
+    Lambda --> GH["GitHub Actions cloud-down"]
+```
 
 | Servizio AWS | Uso nel progetto |
 |---|---|
@@ -320,49 +378,36 @@ Senza key deve restituire una risposta simile:
 
 ## Architettura generale
 
-```text
-Browser
-  |
-  | http://localhost:8080
-  v
-Frontend statico nginx
-  - MapLibre GL JS
-  - PMTiles/Protomaps locale Catania
-  - Heatmap, marker, HUD, TTS browser
-  |
-  | HTTP verso API Gateway
-  v
-API Gateway nginx :8000
-  |
-  +--> Zone Service :8001 --------> PostgreSQL/PostGIS
-  |         |                         - parking_segments
-  |         |                         - road_edges / road_nodes
-  |         |                         - parking_lots
-  |         |                         - segment_reports
-  |         +----------------------> Redis
-  |                                   - segment:signals:*
-  |                                   - raw_events
-  |
-  +--> Prediction Service :8004 ---> PostgreSQL/PostGIS
-  |         +----------------------> Redis cache/segnali
-  |
-  +--> Location Service :8005 -----> Redis live_session:*
-  |         +----------------------> RabbitMQ user.location.updated
-  |         +----------------------> Zone + Prediction Service
-  |
-  +--> Ingestion Service :8002 ----> RabbitMQ parcheggia.events
-  |         +----------------------> Redis budget/cache TomTom
-  |         +----------------------> TomTom, solo se key presente
-  |
-  +--> Admin Service :8006 --------> Redis + RabbitMQ + Zone Service
-  |
-  +--> Nemotron Service :8003 -----> Nemotron/ElevenLabs, solo se key presenti
-            +---------------------> fallback simulato + TTS browser lato frontend
+```mermaid
+flowchart TB
+    Browser["Browser utente"] --> Frontend["Frontend nginx<br/>MapLibre + PMTiles<br/>Heatmap + HUD + TTS browser"]
+    Frontend --> Gateway["API Gateway nginx"]
 
-RabbitMQ parcheggia.events
-  -> Zone Service consumer
-  -> Redis segment:signals:*
-  -> invalidazione cache prediction/heatmap
+    Gateway --> Zone["Zone Service<br/>segmenti, road network, report"]
+    Gateway --> Prediction["Prediction Service<br/>scoring segment-level e heatmap"]
+    Gateway --> Location["Location Service<br/>live session e posizione"]
+    Gateway --> Ingestion["Ingestion Service<br/>scenari demo e TomTom"]
+    Gateway --> Admin["Admin Service<br/>source health e dashboard"]
+    Gateway --> Nemotron["Nemotron Service<br/>suggerimenti AI e TTS"]
+
+    Zone --> PostGIS["PostgreSQL/PostGIS<br/>parking_segments<br/>road_edges / road_nodes<br/>parking_lots<br/>segment_reports"]
+    Prediction --> PostGIS
+
+    Zone --> Redis["Redis<br/>segment:signals:*<br/>prediction cache<br/>live_session:*"]
+    Prediction --> Redis
+    Location --> Redis
+    Ingestion --> Redis
+    Admin --> Redis
+
+    Location --> Rabbit["RabbitMQ<br/>parcheggia.events"]
+    Ingestion --> Rabbit
+    Admin --> Rabbit
+    Rabbit --> Zone
+
+    Ingestion -.-> TomTom["TomTom APIs<br/>se key presente"]
+    Nemotron -.-> Nvidia["Nemotron API<br/>se key presente"]
+    Nemotron -.-> Eleven["ElevenLabs TTS<br/>se key presente"]
+    Nemotron -.-> LocalAI["simulated-fallback"]
 ```
 
 Il gateway e' il punto di ingresso pubblico. I microservizi comunicano tra loro tramite HTTP interno, Redis e RabbitMQ. PostgreSQL/PostGIS contiene i dati geospaziali; Redis contiene stato live, cache e segnali temporanei; RabbitMQ trasporta eventi asincroni.
@@ -546,6 +591,52 @@ Genera suggerimenti e audio:
 
 Le tabelle principali sono:
 
+```mermaid
+erDiagram
+    PARKING_SEGMENTS ||--o{ SEGMENT_REPORTS : riceve
+    PARKING_SEGMENTS ||--o{ PARKING_LOTS : collega
+    ROAD_NODES ||--o{ ROAD_EDGES : origine
+    ROAD_NODES ||--o{ ROAD_EDGES : destinazione
+    ZONES ||--o{ USER_REPORTS : legacy
+
+    PARKING_SEGMENTS {
+        string id
+        string street_name
+        linestring geometry
+        float length_m
+        string parking_type
+        string tariff_zone
+        string source
+        float source_confidence
+    }
+
+    ROAD_NODES {
+        string id
+        point geometry
+    }
+
+    ROAD_EDGES {
+        string id
+        string from_node_id
+        string to_node_id
+        linestring geometry
+    }
+
+    PARKING_LOTS {
+        string id
+        string segment_id
+        point geometry
+        string source
+    }
+
+    SEGMENT_REPORTS {
+        string id
+        string segment_id
+        string report_type
+        datetime created_at
+    }
+```
+
 | Tabella | Ruolo |
 |---|---|
 | `parking_segments` | entita' primaria: tratti stradali OSM fino a circa 120 m, con nome via, geometria LineString, tipo sosta, tariffa, fonte e confidence |
@@ -616,120 +707,87 @@ zone-service.events
 
 Esempio: l'utente apre la GUI e clicca su una strada vicina.
 
-1. Il browser mostra la mappa MapLibre e ha gia' una sessione live creata con:
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as Browser / MapLibre
+    participant G as API Gateway
+    participant L as Location Service
+    participant Z as Zone Service
+    participant P as Prediction Service
+    participant R as Redis
+    participant DB as PostgreSQL / PostGIS
+    participant Q as RabbitMQ
+    participant AI as Nemotron Service
+    participant TTS as ElevenLabs o Browser TTS
 
-   ```http
-   POST /api/v1/live-sessions/start
-   ```
+    B->>G: POST /api/v1/live-sessions/start
+    G->>L: crea sessione
+    L->>R: salva live_session:{id}
+    L-->>B: session_id
 
-2. Il click viene snappato alla rete `road_edges` caricata da:
+    B->>G: GET /api/v1/road-network?lat&lon&radius_m=700
+    G->>Z: road network locale
+    Z->>DB: legge road_edges / road_nodes
+    DB-->>Z: rete stradale
+    Z-->>B: road network
 
-   ```http
-   GET /api/v1/road-network?lat=...&lon=...&radius_m=700
-   ```
+    B->>B: click su strada e snap locale
+    B->>G: POST /api/v1/live-sessions/{id}/location
+    G->>L: aggiorna posizione
+    L->>R: aggiorna live_session:{id}
+    L->>Q: user.location.updated
+    L->>Z: segmento corrente e vicini
+    Z->>DB: query su parking_segments
+    DB-->>Z: current_segment + nearby_segments
+    L->>P: prediction segmento
+    P->>DB: baseline/report segment-level
+    P->>R: segment:signals:* e cache
+    P-->>L: percentuale, confidence, status
+    L-->>B: current_segment, prediction, nearby_segments
 
-3. Il frontend aggiorna la posizione e chiama:
-
-   ```http
-   POST /api/v1/live-sessions/{session_id}/location
-   ```
-
-4. API Gateway inoltra la richiesta al Location Service.
-
-5. Location Service salva lo stato in Redis:
-
-   ```text
-   live_session:{session_id}
-   ```
-
-6. Location Service chiede al Zone Service il segmento corrente:
-
-   ```http
-   GET /segments/current?lat=...&lon=...
-   GET /segments/nearby?lat=...&lon=...&radius_m=500
-   ```
-
-7. Zone Service interroga PostgreSQL/PostGIS:
-
-   ```sql
-   SELECT ...
-   FROM parking_segments
-   ORDER BY ST_Distance(geometry::geography, point::geography)
-   ```
-
-8. Location Service chiede al Prediction Service la stima del segmento.
-
-9. Prediction Service combina:
-
-   - baseline per `parking_type`;
-   - report recenti da `segment_reports`;
-   - segnali Redis `segment:signals:*`;
-   - ora/giorno;
-   - eventuale pressione TomTom se disponibile.
-
-10. La risposta torna al frontend con:
-
-    ```text
-    current_segment
-    prediction
-    nearby_segments
-    ```
-
-11. Il frontend aggiorna:
-
-    - chip centrale con via e percentuale;
-    - marker segmenti;
-    - heatmap MapLibre;
-    - bottom sheet parcheggi;
-    - eventuali target evidenziati.
-
-12. Se il segmento/percentuale cambia, il frontend invia contesto a:
-
-    ```http
-    POST /ai/explain
-    ```
-
-13. Nemotron Service:
-
-    - usa Nemotron live se `NEMOTRON_API_KEY` esiste;
-    - altrimenti produce un suggerimento simulato coerente con i segmenti vicini.
-
-14. Per la voce:
-
-    ```http
-    POST /ai/tts
-    ```
-
-    - se ElevenLabs e' configurato, torna audio;
-    - se non e' configurato, il frontend usa `window.speechSynthesis`.
+    B->>B: aggiorna chip, marker, heatmap e bottom sheet
+    B->>G: POST /ai/explain
+    G->>AI: contesto segmenti + POI vicini
+    AI-->>B: suggerimento + target evidenziabili
+    B->>G: POST /ai/tts
+    G->>AI: testo da leggere
+    AI-->>TTS: ElevenLabs se configurato
+    TTS-->>B: audio o Web Speech API
+```
 
 Il dato parte quindi da geometrie OSM/PostGIS e segnali Redis, passa dai microservizi via HTTP/RabbitMQ, e arriva alla GUI come colore, percentuale, suggerimento e voce.
 
 ## Flusso offline: da OSM alla GUI
 
-1. `scripts/import_osm_segments.py` genera `data/osm/catania_segments.sql` da dati OSM/Overpass.
-2. Il file crea o aggiorna:
+```mermaid
+flowchart TB
+    OSM["OSM / Overpass<br/>bbox Catania"] --> Import["scripts/import_osm_segments.py"]
+    Import --> SQL["data/osm/catania_segments.sql"]
+    Overrides["data/osm/catania_blue_overrides.sql<br/>strisce blu e tariffe"] --> DB
+    SQL --> DB["PostgreSQL/PostGIS"]
 
-   ```text
-   road_nodes
-   road_edges
-   parking_segments
-   ```
+    subgraph Tabelle["Tabelle create o aggiornate"]
+        Nodes["road_nodes"]
+        Edges["road_edges"]
+        Segments["parking_segments"]
+    end
 
-3. `data/osm/catania_blue_overrides.sql` applica override locali per strisce blu/tariffe.
-4. In Docker Compose, `db-init` esegue:
+    DB --> Nodes
+    DB --> Edges
+    DB --> Segments
+    Segments --> Zone["Zone Service"]
+    Edges --> Zone
+    Zone --> Prediction["Prediction Service"]
+    Prediction --> Heatmap["segment-heatmap"]
+    Zone --> RoadNetwork["road-network"]
+    Heatmap --> UI["MapLibre GUI"]
+    RoadNetwork --> UI
 
-   ```text
-   services/zone-service/migrations/001_create_zones.sql
-   data/osm/catania_segments.sql
-   data/osm/catania_blue_overrides.sql
-   ```
-
-5. In Kubernetes locale, `scripts/k8s_import_osm_local.sh` importa gli stessi file nel pod PostgreSQL.
-6. In AWS, `scripts/k8s_import_osm_cloud.sh` importa gli stessi file su RDS.
-7. Zone Service legge PostGIS e serve segmenti/road network.
-8. Prediction Service costruisce stime e heatmap.
-9. MapLibre mostra marker e ribbon heatmap sui tratti reali.
+    Compose["Docker Compose db-init"] --> DB
+    K3DImport["scripts/k8s_import_osm_local.sh"] --> DB
+    AWSImport["scripts/k8s_import_osm_cloud.sh"] --> DB
+```
 
 ## TomTom parsimonioso
 
