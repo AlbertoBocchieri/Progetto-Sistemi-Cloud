@@ -165,7 +165,69 @@ Prerequisiti:
 - Docker runtime;
 - permessi per EKS, EC2/VPC, ECR, RDS, ElastiCache, Amazon MQ, SSM, CloudWatch, Lambda/EventBridge se usi auto-spegnimento.
 
-Setup iniziale:
+### Configurare le credenziali AWS
+
+Non salvare mai access key o secret key nella repo. Le credenziali devono stare nella configurazione locale della AWS CLI.
+
+Il modo piu' semplice e' creare un profilo chiamato `parcheggia-dev`, perche' gli script usano questo nome di default:
+
+```bash
+aws configure --profile parcheggia-dev
+```
+
+Valori da inserire quando richiesti:
+
+```text
+AWS Access Key ID: <access-key-id>
+AWS Secret Access Key: <secret-access-key>
+Default region name: eu-south-1
+Default output format: json
+```
+
+Verifica:
+
+```bash
+aws sts get-caller-identity --profile parcheggia-dev
+```
+
+Se il comando restituisce `Account`, `UserId` e `Arn`, la CLI e' autenticata correttamente.
+
+Per usare un profilo con un altro nome:
+
+```bash
+export AWS_PROFILE=<nome-profilo>
+export AWS_REGION=eu-south-1
+```
+
+Permessi richiesti: per una demo didattica breve e' pragmatico usare un utente IAM dedicato con permessi amministrativi temporanei sull'account di test. In un ambiente reale andrebbero invece applicate policy least-privilege per i soli servizi elencati sotto.
+
+Riferimento ufficiale AWS CLI: <https://docs.aws.amazon.com/cli/latest/reference/configure/>
+
+### Tecnologie AWS usate
+
+Quando `enable_cloud_stack=true`, Terraform e gli script creano questa architettura:
+
+| Servizio AWS | Uso nel progetto |
+|---|---|
+| VPC | rete dedicata con subnet pubbliche/private, Internet Gateway e NAT Gateway |
+| EKS | cluster Kubernetes gestito per eseguire i microservizi |
+| EC2 managed node group | nodi worker EKS ARM64 `t4g.small`, `desired_size=2`, `min=1`, `max=2` |
+| ECR | registry immagini Docker per frontend e microservizi |
+| RDS PostgreSQL 16 | database gestito privato per dati PostGIS, segmenti OSM, report e parcheggi |
+| ElastiCache Redis 7 | cache/stato gestito per sessioni, prediction, segnali e budget |
+| Amazon MQ for RabbitMQ | broker RabbitMQ gestito per eventi asincroni |
+| Load Balancer AWS | creato dal `Service` Kubernetes `frontend` di tipo `LoadBalancer` |
+| SSM Parameter Store | password Postgres/RabbitMQ e API key opzionali |
+| CloudWatch Logs | log group per servizi applicativi e Lambda |
+| Lambda | funzione `auto-down-dispatcher` per spegnimento automatico remoto |
+| EventBridge Scheduler | pianifica l'invocazione Lambda dopo circa 4 ore |
+| IAM | ruoli e policy per EKS, nodi, Lambda e Scheduler |
+| KMS | chiave gestita dal modulo EKS per cifratura del cluster |
+| S3 | backend remoto Terraform con cifratura e lockfile nativo |
+
+I pod applicativi continuano a essere gli stessi della demo locale: `frontend`, `api-gateway`, `zone-service`, `prediction-service`, `location-service`, `ingestion-service`, `nemotron-service`, `admin-service`.
+
+### Setup iniziale
 
 ```bash
 export AWS_PROFILE=parcheggia-dev
@@ -173,6 +235,12 @@ export AWS_REGION=eu-south-1
 scripts/terraform_backend_bootstrap.sh
 terraform -chdir=infrastructure/terraform/aws init -migrate-state
 scripts/aws_ssm_sync_env.sh
+```
+
+Se usi un account AWS diverso, `scripts/terraform_backend_bootstrap.sh` crea un bucket S3 con il tuo account id. Il nome stampato deve combaciare con il campo `bucket` in `infrastructure/terraform/aws/backend.tf`; se e' diverso, aggiorna quel valore e poi esegui:
+
+```bash
+terraform -chdir=infrastructure/terraform/aws init -reconfigure
 ```
 
 `aws_ssm_sync_env.sh` genera o mantiene:
@@ -189,6 +257,14 @@ Le API key esterne sono opzionali:
 /parcheggia/dev/secrets/nemotron-api-key
 /parcheggia/dev/secrets/elevenlabs-api-key
 ```
+
+Per l'auto-spegnimento remoto via Lambda serve anche questo parametro SSM, che contiene un token GitHub fine-grained con permesso di lanciare il workflow `cloud-down.yml`:
+
+```text
+/parcheggia/dev/secrets/github-actions-token
+```
+
+Se questo token non e' configurato, il deploy resta usabile, ma bisogna spegnere manualmente con `scripts/cloud_down.sh`.
 
 Accensione demo cloud:
 
@@ -215,8 +291,6 @@ Spegnimento obbligatorio:
 ```bash
 CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh
 ```
-
-Nota per account AWS diversi: `infrastructure/terraform/aws/backend.tf` punta a uno state S3 specifico. Su un altro account bisogna creare il bucket con `scripts/terraform_backend_bootstrap.sh` e usare un backend coerente con quell'account.
 
 ## Cosa funziona senza API key
 
