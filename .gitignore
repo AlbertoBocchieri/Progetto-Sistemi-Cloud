@@ -31,4 +31,6 @@ data/osm/*
 !data/osm/catania_blue_overrides.sql
 tmp_*.mp3
 
+output/
+
 comandi_script_shell.txt
