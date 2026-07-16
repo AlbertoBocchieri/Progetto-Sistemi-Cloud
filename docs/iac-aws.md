@@ -43,11 +43,11 @@ La configurazione e' in `infrastructure/terraform/aws`.
 Di default `enable_cloud_stack = false`, quindi vengono preparati solo repository ECR. I servizi a costo continuo si abilitano esplicitamente:
 
 ```bash
-cd infrastructure/terraform/aws
-cp terraform.tfvars.example terraform.tfvars
+cp infrastructure/terraform/aws/terraform.tfvars.example infrastructure/terraform/aws/terraform.tfvars
 # modifica enable_cloud_stack = true solo quando vuoi creare risorse AWS
-terraform init
-terraform plan
+scripts/terraform_backend_bootstrap.sh
+scripts/terraform_init.sh
+terraform -chdir=infrastructure/terraform/aws plan
 ```
 
 Password cloud:
@@ -98,7 +98,7 @@ Con `enable_cloud_stack = false` restano solo ECR e lifecycle policy. Il destroy
 
 Lo state Terraform usa un backend remoto:
 
-- bucket S3 versionato `parcheggia-dev-terraform-state-053524633862-eu-south-1`;
+- bucket S3 versionato `parcheggia-dev-terraform-state-<account-id>-<region>`;
 - chiave `terraform/aws/terraform.tfstate`;
 - cifratura S3 AES256;
 - lock nativo S3 con `use_lockfile = true`.
@@ -109,7 +109,7 @@ Bootstrap o verifica del backend:
 export AWS_PROFILE=parcheggia-dev
 export AWS_REGION=eu-south-1
 scripts/terraform_backend_bootstrap.sh
-terraform -chdir=infrastructure/terraform/aws init -migrate-state
+scripts/terraform_init.sh
 ```
 
 Il backend non viene distrutto da `terraform destroy`, perche' contiene lo state necessario a sapere cosa esiste.

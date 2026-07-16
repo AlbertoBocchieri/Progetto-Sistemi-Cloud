@@ -26,7 +26,7 @@ jobs:
 
       - name: Terraform init
         if: ${{ env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' }}
-        run: terraform init -input=false
+        run: TF_DIR=. ../../../scripts/terraform_init.sh
 
       - name: Terraform init without backend
         if: ${{ env.AWS_ACCESS_KEY_ID == '' || env.AWS_SECRET_ACCESS_KEY == '' }}

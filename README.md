@@ -246,6 +246,14 @@ Per controllare che i parametri esistano senza mostrare i valori:
 scripts/aws_ssm_check_config.sh
 ```
 
+Prima del primo piano Terraform su un nuovo account va creato il bucket S3 che conserva lo state remoto:
+
+```bash
+scripts/terraform_backend_bootstrap.sh
+```
+
+Il nome del bucket viene calcolato dall'account AWS attivo, ad esempio `parcheggia-dev-terraform-state-<account-id>-eu-south-1`. Gli script di plan, accensione e spegnimento usano automaticamente lo stesso bucket; nella repo non è fissato l'ID di un account specifico.
+
 Durante il deploy, lo script:
 
 1. legge gli output Terraform, per esempio endpoint RDS, Redis e RabbitMQ;

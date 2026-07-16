@@ -17,7 +17,7 @@ if [ "$ENABLE_CLOUD_STACK" = "true" ]; then
   export TF_VAR_db_password="$(aws ssm get-parameter --name "$DB_PASSWORD_PARAMETER" --with-decryption --query Parameter.Value --output text)"
   export TF_VAR_mq_password="$(aws ssm get-parameter --name "$MQ_PASSWORD_PARAMETER" --with-decryption --query Parameter.Value --output text)"
 fi
-terraform -chdir="$TF_DIR" init -input=false
+scripts/terraform_init.sh
 terraform -chdir="$TF_DIR" validate
 terraform -chdir="$TF_DIR" plan -input=false -out="$PLAN_FILE"
 

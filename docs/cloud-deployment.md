@@ -49,9 +49,9 @@ scripts/run_checks.sh
 2. Creare ECR/Terraform plan:
 
 ```bash
-cd infrastructure/terraform/aws
-terraform init
-terraform plan
+scripts/terraform_backend_bootstrap.sh
+scripts/terraform_init.sh
+terraform -chdir=infrastructure/terraform/aws plan
 ```
 
 La configurazione include ECR, CloudWatch log group per servizio, VPC, EKS, RDS, ElastiCache e Amazon MQ.

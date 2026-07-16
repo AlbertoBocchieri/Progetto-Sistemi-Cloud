@@ -4,6 +4,8 @@ set -eu
 AWS_PROFILE="${AWS_PROFILE:-parcheggia-dev}"
 AWS_REGION="${AWS_REGION:-eu-south-1}"
 TF_DIR="${TF_DIR:-infrastructure/terraform/aws}"
+PROJECT="${PROJECT:-parcheggia}"
+ENVIRONMENT="${ENVIRONMENT:-dev}"
 
 export AWS_PROFILE AWS_REGION
 
@@ -16,8 +18,10 @@ terraform -chdir="$TF_DIR" state list 2>/dev/null || echo "Nessuno state Terrafo
 
 echo
 echo "Terraform backend:"
-aws s3api head-bucket --bucket parcheggia-dev-terraform-state-053524633862-eu-south-1 >/dev/null 2>&1 &&
-  echo "S3 state bucket: parcheggia-dev-terraform-state-053524633862-eu-south-1" ||
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+STATE_BUCKET="${STATE_BUCKET:-${PROJECT}-${ENVIRONMENT}-terraform-state-${ACCOUNT_ID}-${AWS_REGION}}"
+aws s3api head-bucket --bucket "$STATE_BUCKET" >/dev/null 2>&1 &&
+  echo "S3 state bucket: $STATE_BUCKET" ||
   echo "S3 state bucket: missing"
 
 echo

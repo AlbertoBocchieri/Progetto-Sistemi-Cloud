@@ -43,7 +43,7 @@ if command -v kubectl >/dev/null 2>&1 \
 fi
 
 export TF_VAR_enable_cloud_stack=false
-terraform -chdir="$TF_DIR" init -input=false
+scripts/terraform_init.sh
 terraform -chdir="$TF_DIR" validate
 terraform -chdir="$TF_DIR" plan -input=false -out="$PLAN_FILE"
 terraform -chdir="$TF_DIR" apply -input=false "$PLAN_FILE"
