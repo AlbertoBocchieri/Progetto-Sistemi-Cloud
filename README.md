@@ -4,7 +4,7 @@
 
 # ParcheggIA
 
-ParcheggIA è un'app cloud-native che prova a stimare dove sia più probabile trovare parcheggio nelle vicinanze dell'utente.
+ParcheggIA è un'app che prova a stimare dove sia più probabile trovare parcheggio nelle vicinanze dell'utente.
 
 Invece di dire "questa zona è piena" oppure "questa zona è libera", l'app ragiona su piccoli tratti di strada. Nella GUI si vede una mappa stile navigatore, con heatmap, percentuali sui segmenti, marker dei parcheggi, suggerimenti AI e text to speech.
 
@@ -205,7 +205,7 @@ Verifica:
 aws sts get-caller-identity --profile parcheggia-dev
 ```
 
-### Segreti AWS Con SSM
+### Segreti AWS con SSM
 
 Nel deploy cloud le password e le API key non sono scritte nella repo. Vengono salvate in AWS Systems Manager Parameter Store, che nella console AWS si trova in:
 

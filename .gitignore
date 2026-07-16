@@ -1,6 +1,19 @@
 .env
 .env.*
 !.env.example
+terraform.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Local credentials and private keys
+*_api_key.txt
+*accessKeys.csv
+*credentials.csv
+*.pem
+*.p12
+*.pfx
+*.key
+.aws/
 
 __pycache__/
 *.py[cod]
@@ -32,5 +45,6 @@ data/osm/*
 tmp_*.mp3
 
 output/
+tmp/
 
 comandi_script_shell.txt
