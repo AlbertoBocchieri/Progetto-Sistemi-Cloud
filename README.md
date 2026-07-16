@@ -16,6 +16,10 @@ Il progetto è pensato per funzionare in tre modi:
 
 Non servono API key per provarlo. Se TomTom, Nemotron o ElevenLabs non sono configurati, l'app usa dati OSM reali, stime simulate e fallback locali.
 
+<p align="center">
+  <img src="Progetto%20cloud.png" alt="Architettura ParcheggIA" width="900">
+</p>
+
 ## Avvio rapido
 
 Prerequisiti:
@@ -170,10 +174,6 @@ flowchart LR
 ```
 
 ## Deploy Cloud Reale Su AWS
-
-<p align="center">
-  <img src="Progetto%20cloud.png" alt="Architettura ParcheggIA" width="900">
-</p>
 
 Requisiti:
 
