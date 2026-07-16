@@ -1,0 +1,11 @@
+<svg width="560" height="150" viewBox="0 0 560 150" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">ParcheggIA logo</title>
+  <desc id="desc">ParcheggIA wordmark with IA highlighted in blue.</desc>
+  <rect x="10" y="24" width="540" height="102" rx="28" fill="#050B12"/>
+  <rect x="10.5" y="24.5" width="539" height="101" rx="27.5" stroke="#163252"/>
+  <text x="280" y="88" text-anchor="middle" dominant-baseline="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="54" font-weight="750" letter-spacing="0">
+    <tspan fill="#FFFFFF">Parchegg</tspan><tspan fill="#2F80FF" font-weight="850">IA</tspan>
+  </text>
+</svg>

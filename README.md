@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/parcheggia-logo.svg" alt="ParcheggIA" width="420">
+</p>
+
 # ParcheggIA
 
 ParcheggIA e' una demo cloud-native per stimare la probabilita' di trovare parcheggio nelle immediate vicinanze dell'utente a Catania.
