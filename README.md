@@ -70,6 +70,30 @@ docker compose down -v
 
 Al primo avvio è normale aspettare un po', dato che il database importa i segmenti OSM reali di Catania e applica gli override sulle strisce blu.
 
+## Tornare alla demo di Catania
+
+All'apertura l'app parte da Stesicoro, ma il browser può chiedere il permesso di usare la posizione reale. Se ci si trova fuori Catania e si accetta, la mappa si sposta sulla posizione rilevata.
+
+Per tornare alla zona coperta dalla demo:
+
+1. clicca l'icona **Impostazioni** a forma di ingranaggio, in basso a destra;
+2. nel pannello **Stato e demo**, clicca **Stesicoro**;
+3. attendi qualche secondo mentre heatmap, segmenti e previsioni vengono aggiornati.
+
+<p align="center">
+  <img src="docs/assets/demo-catania-main.png" alt="Schermata principale con il pulsante Impostazioni in basso a destra" width="900">
+</p>
+
+<p align="center"><em>Passaggio 1: apri le Impostazioni con l'ingranaggio in basso a destra.</em></p>
+
+<p align="center">
+  <img src="docs/assets/demo-catania-settings.svg" alt="Pannello Stato e demo con Stesicoro evidenziato" width="760">
+</p>
+
+<p align="center"><em>Passaggio 2: seleziona Stesicoro. Anche Borgo, Sanzio ed Europa sono punti demo validi.</em></p>
+
+Il pulsante con il mirino sul lato destro usa il **GPS reale** e può quindi riportare la mappa fuori Catania. Il pulsante con la freccia di navigazione ricentra invece la visuale sulla posizione già selezionata: non cambia città.
+
 ## Windows
 
 Su Windows il modo più stabile è usare WSL2.
