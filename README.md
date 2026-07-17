@@ -72,6 +72,8 @@ Al primo avvio è normale aspettare un po', dato che il database importa i segme
 
 Per esplorare la demo da PC, **clicca direttamente su una strada della mappa**: l'indicatore dell'utente viene spostato e agganciato alla rete stradale. Dopo qualche secondo si aggiornano il tratto corrente, la percentuale di disponibilità, la heatmap, i parcheggi vicini e il suggerimento. Il pulsante **Simula guida 500 m**, disponibile nelle Impostazioni, avvia invece un breve percorso automatico dimostrativo.
 
+> **Nota sulla navigazione:** la funzione di navigazione raggiungibile dalle impostazioni non è stata sviluppata approfonditamente, se ne sconsiglia quindi l'utilizzo.
+
 <p align="center">
   <img src="docs/assets/demo-click-strada.gif" alt="Cambio del segmento stradale e comparsa del suggerimento" width="900">
 </p>
