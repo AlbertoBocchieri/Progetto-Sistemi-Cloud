@@ -70,6 +70,8 @@ docker compose down -v
 
 Al primo avvio è normale aspettare un po', dato che il database importa i segmenti OSM reali di Catania e applica gli override sulle strisce blu.
 
+Per esplorare la demo da PC, **clicca direttamente su una strada della mappa**: l'indicatore dell'utente viene spostato e agganciato alla rete stradale. Dopo qualche secondo si aggiornano il tratto corrente, la percentuale di disponibilità, la heatmap, i parcheggi vicini e il suggerimento. Il pulsante **Simula guida 500 m**, disponibile nelle Impostazioni, avvia invece un breve percorso automatico dimostrativo.
+
 ## Tornare alla demo di Catania
 
 All'apertura l'app parte da Stesicoro, ma il browser può chiedere il permesso di usare la posizione reale. Se ci si trova fuori Catania e si accetta, la mappa si sposta sulla posizione rilevata.
@@ -92,7 +94,7 @@ Per tornare alla zona coperta dalla demo:
 
 <p align="center"><em>Passaggio 2: seleziona Stesicoro. Anche Borgo, Sanzio ed Europa sono punti demo validi.</em></p>
 
-Il pulsante con il mirino sul lato destro usa il **GPS reale** e può quindi riportare la mappa fuori Catania. Il pulsante con la freccia di navigazione ricentra invece la visuale sulla posizione già selezionata: non cambia città.
+Il pulsante con il mirino sul lato destro usa il **GPS reale** e può quindi riportare la mappa fuori Catania. Il pulsante con la freccia di navigazione ricentra invece la visuale sulla posizione già selezionata.
 
 ## Windows
 
