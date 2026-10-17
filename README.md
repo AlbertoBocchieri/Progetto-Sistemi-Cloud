@@ -4,33 +4,33 @@
 
 # ParcheggIA
 
-ParcheggIA è un'app che prova a stimare dove sia più probabile trovare parcheggio nelle vicinanze dell'utente.
+ParcheggIA is an app that estimates where users are most likely to find parking nearby.
 
-Invece di dire "questa zona è piena" oppure "questa zona è libera", l'app ragiona su piccoli tratti di strada. Nella GUI si vede una mappa stile navigatore, con heatmap, percentuali sui segmenti, marker dei parcheggi, suggerimenti AI e text to speech.
+Instead of saying "this area is full" or "this area is available", the app works with short road segments. The GUI displays a navigation-style map with a heatmap, percentages on segments, parking markers, AI suggestions and text to speech.
 
-Il progetto è pensato per funzionare in tre modi:
+The project is designed to run in three ways:
 
-- in locale con Docker Compose;
-- in Kubernetes locale con k3d, così si simula una piccola architettura cloud;
-- su AWS, usando EKS, RDS, ElastiCache, Amazon MQ, ECR, VPC, Load Balancer, SSM, CloudWatch, Lambda ed EventBridge.
+- locally with Docker Compose;
+- on local Kubernetes with k3d, to simulate a small cloud architecture;
+- on AWS, using EKS, RDS, ElastiCache, Amazon MQ, ECR, VPC, Load Balancer, SSM, CloudWatch, Lambda and EventBridge.
 
-Non servono API key per provarlo. Se TomTom, Nemotron o ElevenLabs non sono configurati, l'app usa dati OSM reali, stime simulate e fallback locali.
+No API keys are needed to try it. If TomTom, Nemotron or ElevenLabs are not configured, the app uses real OSM data, simulated estimates and local fallbacks.
 
 <p align="center">
-  <img src="Progetto%20cloud.png" alt="Architettura ParcheggIA" width="900">
+  <img src="Progetto%20cloud.png" alt="ParcheggIA architecture" width="900">
 </p>
 
-## Avvio rapido
+## Quick start
 
-Prerequisiti:
+Prerequisites:
 
 - Git;
-- Docker o un runtime compatibile;
-- su macOS va bene Docker Desktop oppure Colima;
-- su Windows è consigliato WSL2 con Docker Desktop;
-- almeno qualche GB libero per immagini, database e container.
+- Docker or a compatible runtime;
+- on macOS, Docker Desktop or Colima;
+- on Windows, WSL2 with Docker Desktop is recommended;
+- at least a few GB of free space for images, databases and containers.
 
-Clona la repo e avvia tutto:
+Clone the repository and start everything:
 
 ```bash
 git clone https://github.com/AlbertoBocchieri/Progetto-Sistemi-Cloud.git
@@ -38,85 +38,85 @@ cd Progetto-Sistemi-Cloud
 docker compose up -d --build
 ```
 
-Poi apri:
+Then open:
 
 ```text
 http://localhost:8080
 ```
 
-Per controllare che i container siano partiti:
+To check that the containers have started:
 
 ```bash
 docker compose ps
 ```
 
-Per eseguire uno smoke test:
+To run a smoke test:
 
 ```bash
 scripts/smoke_test.sh
 ```
 
-Per fermare tutto:
+To stop everything:
 
 ```bash
 docker compose down
 ```
 
-Per cancellare anche i dati del database e ripartire da zero:
+To also delete the database data and start from scratch:
 
 ```bash
 docker compose down -v
 ```
 
-Al primo avvio è normale aspettare un po', dato che il database importa i segmenti OSM reali di Catania e applica gli override sulle strisce blu.
+The first startup may take a while because the database imports real OSM segments for Catania and applies overrides for blue-line paid parking spaces.
 
-Per esplorare la demo da PC, **clicca direttamente su una strada della mappa**: l'indicatore dell'utente viene spostato e agganciato alla rete stradale. Dopo qualche secondo si aggiornano il tratto corrente, la percentuale di disponibilità, la heatmap, i parcheggi vicini e il suggerimento. Il pulsante **Simula guida 500 m**, disponibile nelle Impostazioni, avvia invece un breve percorso automatico dimostrativo.
+To explore the demo on a PC, **click directly on a road on the map**: the user marker moves and snaps to the road network. After a few seconds, the current segment, availability percentage, heatmap, nearby parking and suggestion are updated. The **Simulate 500 m drive (Simula guida 500 m)** button in **Settings (Impostazioni)** starts a short automated demo route.
 
-> **Nota sulla navigazione:** la funzione di navigazione raggiungibile dalle impostazioni non è stata sviluppata approfonditamente, se ne sconsiglia quindi l'utilizzo.
-
-<p align="center">
-  <img src="docs/assets/demo-click-strada.gif" alt="Cambio del segmento stradale e comparsa del suggerimento" width="900">
-</p>
-<p align="center"><em>Esempio reale: il cambio di strada aggiorna la stima e attiva un suggerimento contestuale.</em></p>
-
-## Tornare alla demo di Catania
-
-All'apertura l'app parte da Stesicoro, ma il browser può chiedere il permesso di usare la posizione reale. Se ci si trova fuori Catania e si accetta, la mappa si sposta sulla posizione rilevata.
-
-Per tornare alla zona coperta dalla demo:
-
-1. clicca l'icona **Impostazioni** a forma di ingranaggio, in basso a destra;
-2. nel pannello **Stato e demo**, clicca **Stesicoro**;
-3. attendi qualche secondo mentre heatmap, segmenti e previsioni vengono aggiornati.
+> **Navigation note:** the navigation feature available in Settings has not been developed extensively, so its use is not recommended.
 
 <p align="center">
-  <img src="docs/assets/demo-catania-main.png" alt="Schermata principale con il pulsante Impostazioni in basso a destra" width="900">
+  <img src="docs/assets/demo-click-strada.gif" alt="Road segment change and suggestion appearing" width="900">
 </p>
+<p align="center"><em>Actual example: changing roads updates the estimate and triggers a contextual suggestion.</em></p>
 
-<p align="center"><em>Passaggio 1: apri le Impostazioni con l'ingranaggio in basso a destra.</em></p>
+## Returning to the Catania demo
+
+The app starts at Stesicoro, but the browser may ask for permission to use your actual location. If you are outside Catania and accept, the map moves to the detected location.
+
+To return to the area covered by the demo:
+
+1. click the **Settings (Impostazioni)** gear icon in the bottom-right corner;
+2. in the **Status and demo (Stato e demo)** panel, click **Stesicoro**;
+3. wait a few seconds while the heatmap, segments and predictions are updated.
 
 <p align="center">
-  <img src="docs/assets/demo-catania-settings.svg" alt="Pannello Stato e demo con Stesicoro evidenziato" width="760">
+  <img src="docs/assets/demo-catania-main.png" alt="Main screen with the Settings button in the bottom-right corner" width="900">
 </p>
 
-<p align="center"><em>Passaggio 2: seleziona Stesicoro. Anche Borgo, Sanzio ed Europa sono punti demo validi.</em></p>
+<p align="center"><em>Step 1: open Settings (Impostazioni) using the gear in the bottom-right corner.</em></p>
 
-Il pulsante con il mirino sul lato destro usa il **GPS reale** e può quindi riportare la mappa fuori Catania. Il pulsante con la freccia di navigazione ricentra invece la visuale sulla posizione già selezionata.
+<p align="center">
+  <img src="docs/assets/demo-catania-settings.svg" alt="Status and demo panel with Stesicoro highlighted" width="760">
+</p>
+
+<p align="center"><em>Step 2: select Stesicoro. Borgo, Sanzio and Europa are also valid demo locations.</em></p>
+
+The crosshair button on the right uses **actual GPS coordinates**, so it may move the map outside Catania again. The navigation-arrow button recenters the view on the location already selected.
 
 ## Windows
 
-Su Windows il modo più stabile è usare WSL2.
+On Windows, the most reliable approach is to use WSL2.
 
-Setup consigliato:
+Recommended setup:
 
-- installa WSL2 con Ubuntu;
-- installa Docker Desktop;
-- abilita l'integrazione di Docker Desktop con Ubuntu/WSL;
-- clona la repo dentro il filesystem Linux, ad esempio in `~/Progetto-Sistemi-Cloud`;
-- esegui i comandi dal terminale Ubuntu, non da PowerShell;
-- apri l'app dal browser Windows su `http://localhost:8080`.
+- install WSL2 with Ubuntu;
+- install Docker Desktop;
+- enable Docker Desktop integration with Ubuntu/WSL;
+- clone the repository inside the Linux filesystem, for example at `~/Progetto-Sistemi-Cloud`;
+- run commands from the Ubuntu terminal rather than PowerShell;
+- open the app in your Windows browser at `http://localhost:8080`.
 
-Esempio:
+Example:
 
 ```bash
 sudo apt update
@@ -126,70 +126,70 @@ cd Progetto-Sistemi-Cloud
 docker compose up -d --build
 ```
 
-Se uno script non parte perché non è eseguibile:
+If a script will not run because it is not executable:
 
 ```bash
 chmod +x scripts/*.sh
 ```
 
-## Simulazione architettura cloud in locale
+## Simulating the cloud architecture locally
 
-Questa modalità serve per simulare il progetto in Kubernetes localmente senza creare risorse AWS.
+This mode simulates the project on local Kubernetes without creating AWS resources.
 
-Su macOS si possono installare i tool così:
+On macOS, you can install the tools with:
 
 ```bash
 brew install colima k3d kubernetes-cli helm
 ```
 
-Se usi Colima:
+If you use Colima:
 
 ```bash
 scripts/colima_start.sh
 ```
 
-Poi avvia la simulazione:
+Then start the simulation:
 
 ```bash
 scripts/cloud_sim_local_up.sh
 ```
 
-Lo script:
+The script:
 
-- crea o riusa un cluster k3d;
-- builda le immagini Docker;
-- le importa nel cluster;
-- deploya PostgreSQL/PostGIS, Redis, RabbitMQ e i microservizi;
-- importa i dati OSM;
-- fa uno smoke test;
-- espone il frontend su:
+- creates or reuses a k3d cluster;
+- builds the Docker images;
+- imports them into the cluster;
+- deploys PostgreSQL/PostGIS, Redis, RabbitMQ and the microservices;
+- imports OSM data;
+- runs a smoke test;
+- exposes the frontend at:
 
 ```text
 http://localhost:18080
 ```
 
-Il terminale deve rimanere aperto perché mantiene i port-forward.
+The terminal must remain open to keep the port forwards running.
 
-Per spegnere:
+To shut it down:
 
 ```bash
 scripts/cloud_sim_local_down.sh
 ```
 
-La simulazione locale corrisponde più o meno a questa mappatura:
+The local simulation roughly maps to AWS as follows:
 
 ```mermaid
 flowchart LR
-    subgraph Locale["Kubernetes locale"]
+    subgraph Locale["Local Kubernetes"]
         K3D["k3d / k3s"]
-        LDB["Pod PostgreSQL/PostGIS"]
-        LREDIS["Pod Redis"]
-        LRABBIT["Pod RabbitMQ"]
-        LIMG["Immagini Docker locali"]
+        LDB["PostgreSQL/PostGIS pod"]
+        LREDIS["Redis pod"]
+        LRABBIT["RabbitMQ pod"]
+        LIMG["Local Docker images"]
         LPORT["Port-forward localhost:18080"]
     end
 
-    subgraph AWS["AWS reale"]
+    subgraph AWS["Actual AWS deployment"]
         EKS["Amazon EKS"]
         RDS["Amazon RDS PostgreSQL"]
         REDIS["Amazon ElastiCache Redis"]
@@ -206,53 +206,53 @@ flowchart LR
     LPORT --> LB
 ```
 
-## Deploy Cloud Reale Su AWS
+## Deploying to AWS
 
-Requisiti:
+Requirements:
 
-- account AWS;
-- AWS CLI configurata;
+- an AWS account;
+- a configured AWS CLI;
 - Terraform;
 - kubectl;
 - Docker;
-- permessi per EKS, EC2/VPC, ECR, RDS, ElastiCache, Amazon MQ, SSM, CloudWatch, Lambda ed EventBridge.
+- permissions for EKS, EC2/VPC, ECR, RDS, ElastiCache, Amazon MQ, SSM, CloudWatch, Lambda and EventBridge.
 
-Configura un profilo AWS:
+Configure an AWS profile:
 
 ```bash
 aws configure --profile parcheggia-dev
 ```
 
-Il nome `parcheggia-dev` sarà il nome locale del profilo AWS CLI. Durante il comando vanno copiati i valori dal CSV delle access key scaricato da AWS:
+`parcheggia-dev` will be the local AWS CLI profile name. During this command, copy the values from the access-key CSV downloaded from AWS:
 
 ```text
-AWS Access Key ID: valore della colonna "Access key ID"
-AWS Secret Access Key: valore della colonna "Secret access key"
+AWS Access Key ID: value from the "Access key ID" column
+AWS Secret Access Key: value from the "Secret access key" column
 Default region name: eu-south-1
 Default output format: json
 ```
 
-Verifica:
+Verify:
 
 ```bash
 aws sts get-caller-identity --profile parcheggia-dev
 ```
 
-### Segreti AWS con SSM
+### AWS secrets with SSM
 
-Nel deploy cloud le password e le API key non sono scritte nella repo. Vengono salvate in AWS Systems Manager Parameter Store, che nella console AWS si trova in:
+In the cloud deployment, passwords and API keys are not stored in the repository. They are saved in AWS Systems Manager Parameter Store, available in the AWS console under:
 
 ```text
 Systems Manager -> Parameter Store
 ```
 
-Il progetto usa il prefisso:
+The project uses this prefix:
 
 ```text
 /parcheggia/dev
 ```
 
-I parametri più importanti sono:
+The main parameters are:
 
 ```text
 /parcheggia/dev/secrets/postgres-password
@@ -263,9 +263,9 @@ I parametri più importanti sono:
 /parcheggia/dev/secrets/github-actions-token
 ```
 
-Le password di PostgreSQL e RabbitMQ servono al cloud. Le chiavi TomTom, Nemotron ed ElevenLabs sono opzionali: se non ci sono, l'app parte comunque e usa simulazioni/fallback. I valori sensibili sono salvati come `SecureString`, quindi non vanno stampati nei log o copiati nei manifest Kubernetes.
+PostgreSQL and RabbitMQ passwords are required for the cloud deployment. TomTom, Nemotron and ElevenLabs keys are optional: without them, the app still starts and uses simulations/fallbacks. Sensitive values are stored as `SecureString`, so they must not be printed in logs or copied into Kubernetes manifests.
 
-Per caricare i valori da un `.env` locale verso SSM:
+To upload values from a local `.env` file to SSM:
 
 ```bash
 export AWS_PROFILE=parcheggia-dev
@@ -273,79 +273,79 @@ export AWS_REGION=eu-south-1
 scripts/aws_ssm_sync_env.sh
 ```
 
-Per controllare che i parametri esistano senza mostrare i valori:
+To check that the parameters exist without displaying their values:
 
 ```bash
 scripts/aws_ssm_check_config.sh
 ```
 
-Prima del primo piano Terraform su un nuovo account va creato il bucket S3 che conserva lo state remoto:
+Before running the first Terraform plan on a new account, create the S3 bucket that stores the remote state:
 
 ```bash
 scripts/terraform_backend_bootstrap.sh
 ```
 
-Il nome del bucket viene calcolato dall'account AWS attivo, ad esempio `parcheggia-dev-terraform-state-<account-id>-eu-south-1`. Gli script di plan, accensione e spegnimento usano automaticamente lo stesso bucket; nella repo non è fissato l'ID di un account specifico.
+The bucket name is derived from the active AWS account, for example `parcheggia-dev-terraform-state-<account-id>-eu-south-1`. The plan, startup and shutdown scripts automatically use the same bucket; the repository does not hardcode a specific account ID.
 
-Durante il deploy, lo script:
+During deployment, the script:
 
-1. legge gli output Terraform, per esempio endpoint RDS, Redis e RabbitMQ;
-2. legge i segreti da SSM;
-3. crea nel cluster Kubernetes una `ConfigMap` per la configurazione normale;
-4. crea un `Secret` Kubernetes per password e API key (se presenti).
+1. reads Terraform outputs, such as the RDS, Redis and RabbitMQ endpoints;
+2. reads secrets from SSM;
+3. creates a `ConfigMap` in the Kubernetes cluster for regular configuration;
+4. creates a Kubernetes `Secret` for passwords and API keys, if present.
 
-In pratica i pod non leggono direttamente da SSM: ricevono variabili ambiente tramite `ConfigMap` e `Secret` Kubernetes generati dagli script.
+In practice, pods do not read directly from SSM: they receive environment variables through Kubernetes `ConfigMap` and `Secret` resources generated by the scripts.
 
-Per vedere cosa verrebbe creato:
+To preview what would be created:
 
 ```bash
 scripts/cloud_plan.sh
 ```
 
-Per accendere la demo cloud:
+To start the cloud demo:
 
 ```bash
 CONFIRM_APPLY=apply-parcheggia-dev scripts/cloud_demo_up.sh
 ```
 
-Per spegnere:
+To shut it down:
 
 ```bash
 CONFIRM_DESTROY=destroy-parcheggia-dev scripts/cloud_down.sh
 ```
 
-Il progetto include anche un auto-spegnimento con Lambda/EventBridge che viene schedulato automaticamente quando viene fatto il deploy cloud, questo spegnerà tutto dopo 4 ore.
-Si può comunque controllare lo stato con il comando:
+The project also includes automatic shutdown with Lambda/EventBridge, scheduled automatically during cloud deployment to shut everything down after 4 hours.
+You can still check its status with:
 
 ```bash
 scripts/cloud_status.sh
 ```
 
-## Cosa funziona senza API Key
+## What works without API keys
 
-La demo è stata concepita per partire anche senza chiavi esterne.
+The demo is designed to start even without external keys.
 
-Senza API key:
+Without API keys:
 
-- la mappa funziona;
-- i segmenti OSM reali vengono caricati;
-- la heatmap viene mostrata;
-- le percentuali vengono simulate in modo realistico;
-- i suggerimenti AI hanno un fallback locale;
-- il TTS può usare il browser;
-- TomTom, Nemotron ed ElevenLabs non vengono chiamati.
+- the map works;
+- real OSM segments are loaded;
+- the heatmap is displayed;
+- percentages are simulated realistically;
+- AI suggestions have a local fallback;
+- TTS can use the browser;
+- TomTom, Nemotron and ElevenLabs are not called.
 
-Con API key configurate:
+With API keys configured:
 
-- TomTom migliora le stime con traffico, incidenti e POI parcheggi;
-- Nemotron genera suggerimenti reali;
-- ElevenLabs genera una voce più naturale.
+- TomTom improves estimates with traffic, incidents and parking POIs;
+- Nemotron generates actual AI suggestions;
+- ElevenLabs generates a more natural voice.
 
-Le chiavi non vengono mai esposte.
+The keys are never exposed.
 
-## Architettura
+## Architecture
 
-Questa è la struttura generale:
+This is the overall structure:
 
 ```mermaid
 flowchart TB
@@ -371,86 +371,86 @@ flowchart TB
     Ingestion --> Rabbit
     Rabbit --> Zone
 
-    Ingestion -.-> TomTom["TomTom<br/>opzionale"]
-    AI -.-> Nemotron["NVIDIA Nemotron<br/>opzionale"]
-    AI -.-> Eleven["ElevenLabs<br/>opzionale"]
+    Ingestion -.-> TomTom["TomTom<br/>optional"]
+    AI -.-> Nemotron["NVIDIA Nemotron<br/>optional"]
+    AI -.-> Eleven["ElevenLabs<br/>optional"]
 ```
 
-Il browser parla solo con il gateway. Questo è importante perché:
+The browser communicates only with the gateway. This matters because:
 
-- le API key restano nel backend
-- si può controllare il consumo delle API esterne
-- il frontend non deve conoscere la struttura interna
+- API keys stay in the backend
+- usage of external APIs can be controlled
+- the frontend does not need to know the internal structure
 
-## Stack Tecnologico
+## Technology stack
 
-| Parte | Tecnologie |
+| Component | Technologies |
 |---|---|
-| Frontend | HTML, CSS, JavaScript vanilla |
-| Mappa | MapLibre GL JS, PMTiles |
+| Frontend | HTML, CSS, vanilla JavaScript |
+| Map | MapLibre GL JS, PMTiles |
 | Backend | Python FastAPI |
 | Gateway | Nginx |
 | Database | PostgreSQL + PostGIS |
-| Cache/stato | Redis |
-| Eventi | RabbitMQ |
-| AI | NVIDIA Nemotron, con fallback |
-| TTS | ElevenLabs, con fallback browser |
-| Container | Docker |
-| Sviluppo locale | Docker Compose |
-| Kubernetes locale | k3d/k3s |
+| Cache/state | Redis |
+| Events | RabbitMQ |
+| AI | NVIDIA Nemotron, with fallback |
+| TTS | ElevenLabs, with browser fallback |
+| Containers | Docker |
+| Local development | Docker Compose |
+| Local Kubernetes | k3d/k3s |
 | Cloud | AWS EKS, RDS, ElastiCache, Amazon MQ, ECR, VPC, Load Balancer, SSM Parameter Store, CloudWatch, Lambda, EventBridge |
 | IaC | Terraform |
 | CI/CD | GitHub Actions |
 
-Non sono stati usati React, TypeScript o Spring Boot. All'inizio erano opzioni possibili, ma alla fine il progetto è andato su una soluzione più semplice: frontend vanilla, gateway Nginx e microservizi FastAPI.
+React, TypeScript and Spring Boot were not used. They were considered initially, but the project ultimately adopted a simpler solution: a vanilla frontend, an Nginx gateway and FastAPI microservices.
 
-## Servizi Locali
+## Local services
 
-| Servizio | Porta | Cosa fa |
+| Service | Port | Purpose |
 |---|---:|---|
-| `frontend` | 8080 | Serve la GUI |
-| `api-gateway` | 8000 | Smista le richieste verso i servizi |
-| `zone-service` | 8001 | Segmenti, strade, report, dati geografici |
-| `ingestion-service` | 8002 | TomTom, scenari demo, eventi |
-| `nemotron-service` | 8003 | Suggerimenti AI e TTS |
-| `prediction-service` | 8004 | Calcolo percentuali e heatmap |
-| `location-service` | 8005 | Sessioni live e posizione utente |
-| `admin-service` | 8006 | Diagnostica e reset demo |
+| `frontend` | 8080 | Serves the GUI |
+| `api-gateway` | 8000 | Routes requests to services |
+| `zone-service` | 8001 | Segments, roads, reports, geographic data |
+| `ingestion-service` | 8002 | TomTom, demo scenarios, events |
+| `nemotron-service` | 8003 | AI suggestions and TTS |
+| `prediction-service` | 8004 | Percentage and heatmap calculations |
+| `location-service` | 8005 | Live sessions and user location |
+| `admin-service` | 8006 | Diagnostics and demo reset |
 | `postgres` | 5432 | PostgreSQL/PostGIS |
-| `redis` | 6379 | Cache e stato live |
-| `rabbitmq` | 5672 / 15672 | Broker eventi e interfaccia web |
+| `redis` | 6379 | Cache and live state |
+| `rabbitmq` | 5672 / 15672 | Event broker and web interface |
 
 RabbitMQ Management:
 
 ```text
 http://localhost:15672
-utente: parcheggia
+username: parcheggia
 password: parcheggia
 ```
 
 ## Frontend
 
-Il frontend è volutamente semplice: niente framework, niente build complessa. La parte interessante è MapLibre.
+The frontend is deliberately simple: no framework and no complex build process. MapLibre is the interesting part.
 
-File principali:
+Main files:
 
 - `frontend/index.html`
 - `frontend/styles.css`
 - `frontend/app.js`
 - `frontend/assets/catania.pmtiles`
 
-La GUI mostra:
+The GUI displays:
 
-- posizione utente;
-- heatmap continua sui segmenti;
-- marker con percentuale;
-- marker parcheggi;
-- suggerimenti AI;
+- user location;
+- a continuous heatmap across segments;
+- percentage markers;
+- parking markers;
+- AI suggestions;
 - TTS;
-- tema scuro/chiaro;
-- simulazione guida.
+- dark/light theme;
+- driving simulation.
 
-Alcune costanti importanti in `frontend/app.js`:
+Some important constants in `frontend/app.js`:
 
 ```text
 LOCAL_RADIUS_M = 500
@@ -458,247 +458,247 @@ PARKING_POI_RADIUS_M = 500
 ROAD_NETWORK_RADIUS_M = 700
 MAP_DEFAULT_ZOOM = 18.6
 MAP_TRACKING_ZOOM = 19.1
-TOMTOM_PREDICTION_REFRESH_MS = 5 minuti
+TOMTOM_PREDICTION_REFRESH_MS = 5 minutes
 ```
 
-La basemap è locale:
+The basemap is local:
 
 ```text
 frontend/assets/catania.pmtiles
 ```
 
-Così non servono chiavi per MapTiler, Stadia o TomTom Map Display.
+This means no keys are needed for MapTiler, Stadia or TomTom Map Display.
 
 ## Backend
 
 ### API Gateway
 
-Il gateway è Nginx. Riceve le richieste dal browser e le inoltra al servizio giusto.
+The gateway is Nginx. It receives requests from the browser and forwards them to the appropriate service.
 
-Esempi:
+Examples:
 
-- `/api/v1/live-sessions` va al `location-service`;
-- `/api/v1/segment-heatmap` va al `prediction-service`;
-- `/api/v1/tomtom/...` va all'`ingestion-service`;
-- `/ai/...` va al `nemotron-service`;
-- molte API sui segmenti vanno al `zone-service`.
+- `/api/v1/live-sessions` goes to `location-service`;
+- `/api/v1/segment-heatmap` goes to `prediction-service`;
+- `/api/v1/tomtom/...` goes to `ingestion-service`;
+- `/ai/...` goes to `nemotron-service`;
+- many segment APIs go to `zone-service`.
 
 ### Zone Service
 
-Gestisce la parte geografica:
+Handles geographic features:
 
-- segmenti stradali;
-- segmento corrente;
-- segmenti vicini;
-- road network;
-- report;
-- consumer RabbitMQ;
-- API legacy sulle zone.
+- road segments;
+- the current segment;
+- nearby segments;
+- the road network;
+- reports;
+- the RabbitMQ consumer;
+- legacy zone APIs.
 
-Usa PostGIS per le query spaziali e Redis per cache/segnali.
+It uses PostGIS for spatial queries and Redis for caching/signals.
 
 ### Prediction Service
 
-Calcola la percentuale di parcheggiabilità.
+Calculates the probability of finding parking as a percentage.
 
-Il modello non usa machine learning, ma è rule-based.
-Tiene conto di:
+The model is rule-based and does not use machine learning.
+It takes into account:
 
-- tipo sosta;
-- report utente;
-- segnali Redis;
-- eventuali dati TomTom;
-- ora e giorno;
-- distanza.
+- parking type;
+- user reports;
+- Redis signals;
+- TomTom data, if available;
+- time and day;
+- distance.
 
-Il calcolo della "parcheggiabilità" è il seguente:
+The parking availability calculation is:
 
 ```text
-percentuale =
-  baseline_tipo_sosta
-  + correzione_report
-  + correzione_traffico_tomtom_o_simulato
-  + correzione_incidenti
-  + correzione_orario
-  + correzione_distanza
+percentage =
+  parking_type_baseline
+  + report_adjustment
+  + tomtom_or_simulated_traffic_adjustment
+  + incident_adjustment
+  + time_adjustment
+  + distance_adjustment
 ```
 
-Poi il risultato viene normalizzato tra `0` e `100`.
+The result is then normalized to a value between `0` and `100`.
 
-Le baseline iniziali sono:
+The initial baselines are:
 
 ```text
-strisce blu          42%
-probabile libero     48%
-limitato             14%
-sconosciuto          42%
+blue-line paid parking   42%
+probably free            48%
+restricted               14%
+unknown                  42%
 ```
 
-Le correzioni principali a questa percentuale derivano da:
+The main adjustments to this percentage come from:
 
-- i report recenti degli utenti che possono spostare la stima di circa `-15/+15`;
-- traffico e incidenti, reali o simulati, possono spostarla di circa `-35/+20`;
-- l'orario peggiora la stima nelle ore più trafficate e la migliora leggermente di notte o nel weekend;
-- i segmenti più lontani dall'utente pesano meno rispetto a quelli vicini.
+- recent user reports, which can shift the estimate by around `-15/+15`;
+- real or simulated traffic and incidents, which can shift it by around `-35/+20`;
+- time of day, which lowers the estimate during busy hours and improves it slightly at night or on weekends;
+- segments farther from the user, which carry less weight than nearby ones.
 
-Accanto alla percentuale viene calcolata anche una `confidence`, cioè quanto il sistema si fida della stima. Una stima con dati reali recenti e report coerenti avrà confidence più alta, mentre una stima solo simulata o inferita sarà più prudente.
+Alongside the percentage, the system also calculates `confidence`: how much it trusts the estimate. An estimate based on recent real data and consistent reports has higher confidence, while an estimate based only on simulated or inferred data is more cautious.
 
-Gli stati visuali sono:
+The visual states are:
 
 ```text
-< 20%      molto difficile
-20-39%     difficile
-40-59%     incerto
-60-79%     buono
->= 80%     favorevole
+< 20%      very difficult
+20-39%     difficult
+40-59%     uncertain
+60-79%     good
+>= 80%     favorable
 ```
 
 ### Location Service
 
-Tiene traccia della sessione live dell'utente.
+Tracks the user's live session.
 
-Quando arriva una nuova posizione:
+When a new location arrives, it:
 
-- salva la sessione su Redis;
-- chiede al `zone-service` il segmento corrente;
-- chiede al `prediction-service` la stima;
-- pubblica un evento su RabbitMQ.
+- saves the session in Redis;
+- asks `zone-service` for the current segment;
+- asks `prediction-service` for the estimate;
+- publishes an event to RabbitMQ.
 
 ### Ingestion Service
 
-Si occupa dei dati esterni e degli scenari demo.
+Handles external data and demo scenarios.
 
-Con TomTom configurato può usare:
+With TomTom configured, it can use:
 
 - Traffic Flow;
 - Traffic Incidents;
-- Search API per trovare parcheggi vicini.
+- Search API to find nearby parking.
 
-Ha anche un budget guard su Redis per non consumare troppe chiamate.
+It also has a budget guard in Redis to limit API calls.
 
 ### Nemotron Service
 
-Genera suggerimenti per l'utente.
+Generates suggestions for the user.
 
-Se la API key Nemotron è presente usa:
+If a Nemotron API key is present, it uses:
 
 ```text
 nvidia/nemotron-3-nano-30b-a3b
 ```
 
-Se non è presente usa un fallback simulato.
+Otherwise, it uses a simulated fallback.
 
-Per il TTS usa ElevenLabs se configurato, altrimenti il frontend può usare il TTS del browser.
+For TTS, it uses ElevenLabs if configured; otherwise, the frontend can use the browser's TTS.
 
-## Modello dati
+## Data model
 
-Il database principale è PostgreSQL con PostGIS.
+The main database is PostgreSQL with PostGIS.
 
-Le entità più importanti sono:
+The main entities are:
 
-- `parking_segments`: piccoli tratti stradali;
-- `road_edges` e `road_nodes`: rete stradale usata per snap e simulazione;
-- `parking_lots`: parcheggi;
-- `segment_reports`: segnalazioni utente sui segmenti;
-- tabelle legacy `zones` e `user_reports`, mantenute per compatibilità.
+- `parking_segments`: short road segments;
+- `road_edges` and `road_nodes`: the road network used for snapping and simulation;
+- `parking_lots`: parking lots;
+- `segment_reports`: user reports about segments;
+- legacy tables `zones` and `user_reports`, retained for compatibility.
 
-I segmenti possono avere tipi di sosta come:
+Segments can have parking types such as:
 
-- `blue`: strisce blu;
-- `probable_free`: probabilmente libero;
-- `restricted`: limitato;
-- `unknown`: non noto.
+- `blue`: blue-line paid parking;
+- `probable_free`: probably free;
+- `restricted`: restricted;
+- `unknown`: unknown.
 
-La parte geografica usa coordinate EPSG:4326 e indici GIST.
+The geographic data uses EPSG:4326 coordinates and GIST indexes.
 
-## Import OSM
+## OSM import
 
-I dati delle strade arrivano da OpenStreetMap.
+Road data comes from OpenStreetMap.
 
-File importanti:
+Important files:
 
 - `data/osm/catania_segments.sql`
 - `data/osm/catania_blue_overrides.sql`
 - `scripts/import_osm_segments.py`
 - `scripts/check_osm_import.py`
 
-Al primo avvio `db-init`:
+On the first startup, `db-init`:
 
-1. crea le tabelle;
-2. importa i segmenti OSM se non sono già presenti;
-3. applica gli override per le strisce blu.
+1. creates the tables;
+2. imports OSM segments if they are not already present;
+3. applies overrides for blue-line paid parking.
 
-Abbiamo scelto di importare OSM in PostGIS invece di leggere le strade direttamente da MapLibre perché i tile della mappa servono a disegnare, non a fare analisi affidabile su segmenti, report e predizioni.
+We chose to import OSM into PostGIS instead of reading roads directly from MapLibre because map tiles are meant for rendering, not reliable analysis of segments, reports and predictions.
 
 ## TomTom
 
-TomTom non viene chiamato dal frontend. Viene usato solo dal backend.
+TomTom is used only by the backend; it is not called by the frontend.
 
-Le API usate sono:
+The APIs used are:
 
 - Traffic Flow API;
 - Traffic Incidents API;
 - Search API.
 
-Traffic Flow dà informazioni come:
+Traffic Flow provides information such as:
 
-- velocità corrente;
-- velocità a traffico libero;
+- current speed;
+- free-flow speed;
 - confidence;
-- chiusura strada.
+- road closures.
 
-Traffic Incidents dà informazioni su:
+Traffic Incidents provides information about:
 
-- incidenti;
-- lavori;
-- ritardi;
-- code;
-- tratti chiusi.
+- incidents;
+- roadworks;
+- delays;
+- traffic queues;
+- closed sections.
 
-Search API viene usata per trovare parcheggi vicini, non per sapere quanti posti liberi ci sono.
+Search API is used to find nearby parking, not to determine how many spaces are available.
 
-Per risparmiare chiamate:
+To reduce API calls:
 
-- raggio locale di 500 metri;
-- celle cache da circa 250 metri;
-- TTL di 5 minuti per la prediction;
-- TTL di 24 ore per i POI parcheggi;
-- budget guard al 5% della quota mensile in modalità test.
+- a local radius of 500 meters;
+- cache cells of approximately 250 meters;
+- a 5-minute TTL for predictions;
+- a 24-hour TTL for parking POIs;
+- a budget guard set to 5% of the monthly quota in test mode.
 
-## AI e TTS
+## AI and TTS
 
-Il suggerimento AI viene generato con contesto locale:
+AI suggestions are generated using local context:
 
-- strada corrente;
-- percentuale;
-- segmenti vicini;
-- parcheggi vicini;
-- tipo sosta;
+- the current road;
+- the percentage;
+- nearby segments;
+- nearby parking;
+- parking type;
 - confidence.
 
-Il prompt chiede consigli pratici, brevi e in italiano, evitando frasi troppo tecniche.
+The prompt requests short, practical advice in Italian, avoiding overly technical wording.
 
-Esempio del tipo di suggerimento:
+Example suggestion, translated into English here; suggestions in the app are in Italian:
 
 ```text
-Prosegui su Via Caronda, cerca strisce blu a 44 metri; in alternativa vai verso Via Palazzotto al 46%.
+Continue along Via Caronda and look for blue-line paid parking 44 meters away; alternatively, head toward Via Palazzotto at 46%.
 ```
 
-Il TTS:
+TTS:
 
-- usa ElevenLabs se c'è la key;
-- usa modello `eleven_flash_v2_5`;
-- ha similarity al 50%;
-- ha style/exaggeration al 25%;
-- altrimenti usa il browser.
+- uses ElevenLabs if a key is available;
+- uses the `eleven_flash_v2_5` model;
+- sets similarity to 50%;
+- sets style/exaggeration to 25%;
+- otherwise uses the browser.
 
-## Flusso pratico
+## Practical flow
 
-Quando l'utente clicca su una strada:
+When the user clicks on a road:
 
 ```mermaid
 sequenceDiagram
-    participant U as Utente
+    participant U as User
     participant F as Frontend
     participant G as API Gateway
     participant L as Location Service
@@ -708,26 +708,26 @@ sequenceDiagram
     participant R as Redis
     participant AI as Nemotron Service
 
-    U->>F: click sulla strada
-    F->>F: snap sulla road network
-    F->>G: nuova posizione
+    U->>F: click on road
+    F->>F: snap to road network
+    F->>G: new location
     G->>L: update live session
-    L->>R: salva sessione
-    L->>Z: segmento corrente e vicini
-    Z->>DB: query spaziali
-    L->>P: prediction segmento
-    P->>DB: dati segmento/report
-    P->>R: segnali e cache
-    P-->>L: percentuale
-    L-->>F: segmento + prediction
-    F->>AI: contesto per suggerimento
-    AI-->>F: suggerimento
-    F->>U: aggiorna mappa e TTS
+    L->>R: save session
+    L->>Z: current and nearby segments
+    Z->>DB: spatial queries
+    L->>P: segment prediction
+    P->>DB: segment/report data
+    P->>R: signals and cache
+    P-->>L: percentage
+    L-->>F: segment + prediction
+    F->>AI: suggestion context
+    AI-->>F: suggestion
+    F->>U: update map and TTS
 ```
 
-## API Principali
+## Main APIs
 
-Segmenti:
+Segments:
 
 ```text
 GET /api/v1/segments
@@ -738,13 +738,13 @@ GET /api/v1/segment-heatmap?bbox=&zoom=
 POST /api/v1/segment-reports
 ```
 
-Rete stradale:
+Road network:
 
 ```text
 GET /api/v1/road-network?lat=&lon=&radius_m=700
 ```
 
-Sessioni live:
+Live sessions:
 
 ```text
 POST /api/v1/live-sessions/start
@@ -778,46 +778,46 @@ POST /api/v1/admin/demo-scenarios/reset
 
 ## GitHub Actions
 
-La repo contiene workflow per:
+The repository contains workflows for:
 
-- controlli CI;
-- build Docker;
-- build e push immagini su ECR;
+- CI checks;
+- Docker builds;
+- building and pushing images to ECR;
 - Terraform plan/apply;
-- deploy locale k3d;
-- deploy EKS;
-- spegnimento cloud.
+- local k3d deployment;
+- EKS deployment;
+- cloud shutdown.
 
-### Cosa succede dopo un push
+### What happens after a push
 
-Quando viene fatto un push su `main`, GitHub Actions esegue automaticamente i workflow principali:
+When a commit is pushed to `main`, GitHub Actions automatically runs the main workflows:
 
-1. parte la CI, che esegue controlli statici, avvia lo stack con Docker Compose e lancia smoke test/test demo;
-2. parte la build Docker, che verifica che tutte le immagini dei servizi siano costruibili;
-3. se i segreti AWS del repository sono configurati, parte anche la build ECR;
-4. il workflow ECR fa login su Amazon ECR, costruisce le immagini e le pubblica nei repository AWS;
-5. ogni immagine viene taggata almeno con `latest` e con lo SHA del commit, così si può risalire alla versione esatta del codice.
+1. CI starts, runs static checks, starts the stack with Docker Compose and runs smoke tests/demo tests;
+2. the Docker build starts and verifies that all service images can be built;
+3. if the repository's AWS secrets are configured, the ECR build also starts;
+4. the ECR workflow logs in to Amazon ECR, builds the images and publishes them to the AWS repositories;
+5. each image is tagged with at least `latest` and the commit SHA, so the exact code version can be traced.
 
-Il flusso ECR è questo:
+The ECR flow is:
 
 ```text
-push su main
+push to main
         ↓
 GitHub Actions
         ↓
-docker build dei servizi
+docker build for the services
         ↓
-login su Amazon ECR
+log in to Amazon ECR
         ↓
-push immagini su ECR
+push images to ECR
         ↓
-EKS può scaricare quelle immagini durante il deploy
+EKS can pull those images during deployment
 ```
 
-Il push su GitHub non fa partire automaticamente il deploy su AWS. Aggiorna le immagini su ECR, ma il deploy EKS resta un passaggio controllato, da script locale o workflow manuale, per evitare di creare o aggiornare risorse cloud a ogni commit.
+A push to GitHub does not automatically trigger deployment to AWS. It updates the images in ECR, while EKS deployment remains a controlled step, run from a local script or a manual workflow, to avoid creating or updating cloud resources on every commit.
 
 
-Workflow principali:
+Main workflows:
 
 - `.github/workflows/ci.yml`
 - `.github/workflows/docker-build.yml`
@@ -828,9 +828,9 @@ Workflow principali:
 - `.github/workflows/terraform-apply.yml`
 - `.github/workflows/cloud-down.yml`
 
-## Test
+## Tests
 
-Comandi utili:
+Useful commands:
 
 ```bash
 scripts/static_checks.sh
@@ -843,51 +843,51 @@ scripts/check_road_backed_segments.py
 scripts/check_scoring.py
 ```
 
-Per Kubernetes:
+For Kubernetes:
 
 ```bash
 scripts/k8s_smoke_test.sh
 ```
 
-Per test base di carico:
+For basic load testing:
 
 ```bash
 scripts/load_test.sh
 ```
 
 
-### Il primo avvio è lento
+### The first startup is slow
 
-È normale. Il database sta importando i segmenti OSM.
+This is normal. The database is importing OSM segments.
 
-Controlla:
+Check:
 
 ```bash
 docker compose logs db-init
 ```
 
-## Struttura Della Repo
+## Repository structure
 
 ```text
-frontend/                         GUI MapLibre
-services/api-gateway/             gateway Nginx
-services/zone-service/            segmenti, strade, report
-services/prediction-service/      calcolo parkability
-services/location-service/        sessioni live
-services/ingestion-service/       TomTom e scenari demo
-services/nemotron-service/        suggerimenti AI e TTS
-services/admin-service/           diagnostica
-data/osm/                         dati OSM e override
-infrastructure/k8s/               manifest Kubernetes
-infrastructure/terraform/aws/     infrastruttura AWS
-infrastructure/ansible/           playbook locali
-scripts/                          script di avvio, test e deploy
-docs/                             documentazione extra
+frontend/                         MapLibre GUI
+services/api-gateway/             Nginx gateway
+services/zone-service/            segments, roads, reports
+services/prediction-service/      parking availability calculation
+services/location-service/        live sessions
+services/ingestion-service/       TomTom and demo scenarios
+services/nemotron-service/        AI suggestions and TTS
+services/admin-service/           diagnostics
+data/osm/                         OSM data and overrides
+infrastructure/k8s/               Kubernetes manifests
+infrastructure/terraform/aws/     AWS infrastructure
+infrastructure/ansible/           local playbooks
+scripts/                          startup, test and deployment scripts
+docs/                             additional documentation
 ```
 
-## Documentazione Extra
+## Additional documentation
 
-Per approfondire:
+For more details:
 
 - `docs/architecture.md`
 - `docs/data-model.md`
